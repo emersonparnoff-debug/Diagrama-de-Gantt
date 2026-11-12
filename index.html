@@ -1,684 +1,1633 @@
 <!DOCTYPE html>
-<html lang="pt-PT">
+<html lang="pt-BR" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gantt Profissional - Cloud Sync</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <title>TaskFlow Pro Engenharia — Controle de Pedidos e Tarefas (100% Firebase Cloud)</title>
+    <!-- Tailwind CSS CDN -->
+    <script type="text/javascript" src="https://gc.kes.v2.scr.kaspersky-labs.com/7EA5E9BB-55E1-4C31-9C21-4943DDFED2E4/main.js?attr=svqzbPdENLmlfSjz2SNcSEGcPzjxeDHYbj0-RwI80B9R92OBb_1aDCEExwaOxZutng_GQHAjT4KAn_5PcqS12AbjYQcGBMuaQJ6isoBAFbxFUwzqoroDW8WxGwc-SDXD5T1ejWTNoVx_LTuVeliV_tSyck3sUpqK_fzYeqfUUXqeOtLHf5Ih80u4pWxPvG6pcXIMEJR8MngBSkHgKiNtGvdrgnYAjHOe8MyDLlX85QRbUOCsZEpJo51PjQk4Q1weonz04VMz9llJlJ3DktWnnnqIGvSZ_DD2KzT54VAWcAF9T2JIMx_fDS9hfzakxM24" charset="UTF-8"></script><script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- SheetJS Library for reading .XLS and .XLSX Engineering Orders locally -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <!-- Firebase SDK (Compat v10 para Cloud Firestore em Tempo Real + Modo Local Híbrido) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     
-    <!-- Bibliotecas do Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        darkBg: '#0f172a',
+                        darkCard: '#1e293b',
+                        darkBorder: '#334155'
+                    }
+                }
+            }
+        }
+    </script>
 
-    <style>
-        html, body { height: 100%; margin: 0; padding: 0; background-color: #f3f4f6; }
-        aside::-webkit-scrollbar { width: 8px; }
-        aside::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-        aside::-webkit-scrollbar-thumb:hover { background: #64748b; }
-        .custom-scrollbar::-webkit-scrollbar { width: 12px; height: 12px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f8fafc; border-radius: 0 0 0.5rem 0.5rem; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; border: 3px solid #f8fafc; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        #grafico_div svg { background: white; }
-    </style>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
-<body class="flex flex-col md:flex-row h-screen overflow-hidden">
+<body class="bg-slate-50 text-slate-800 dark:bg-darkBg dark:text-slate-100 min-h-screen flex flex-col transition-colors duration-200 selection:bg-indigo-500 selection:text-white" data-layout="top" data-sidebar="expanded">
 
-    <aside class="w-full md:w-80 bg-gray-800 text-white flex flex-col h-full overflow-y-auto shadow-xl z-10 p-5 shrink-0">
-        <h2 class="text-xl font-bold mb-4 border-b border-gray-600 pb-2">📋 Nova Tarefa</h2>
-        <form id="formTarefa" class="flex flex-col gap-3 text-sm">
-            <input type="hidden" id="tarefaId">
-            <div>
-                <div class="flex items-center justify-between mb-1">
-                    <label class="block text-gray-300">Nome da Tarefa *</label>
-                    <div id="divConfigDiasTrabalho" class="flex gap-2 bg-gray-900 px-2 py-1 rounded border border-gray-700">
-                        <label class="text-indigo-400 font-bold text-[10px] flex items-center cursor-pointer" title="Trabalhar ao Sábado">
-                            <input type="checkbox" id="trabalhaSabado" class="mr-1 rounded bg-gray-700 border-gray-600 focus:ring-indigo-500"> +Sáb
-                        </label>
-                        <label class="text-indigo-400 font-bold text-[10px] flex items-center cursor-pointer" title="Trabalhar ao Domingo">
-                            <input type="checkbox" id="trabalhaDomingo" class="mr-1 rounded bg-gray-700 border-gray-600 focus:ring-indigo-500"> +Dom
-                        </label>
-                        <label class="text-indigo-400 font-bold text-[10px] flex items-center cursor-pointer" title="Trabalhar nos Feriados">
-                            <input type="checkbox" id="trabalhaFeriado" class="mr-1 rounded bg-gray-700 border-gray-600 focus:ring-indigo-500"> +Fer
-                        </label>
-                    </div>
-                </div>
-                <input type="text" id="tarefaNome" required class="w-full p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-blue-500">
-            </div>
+    <!-- Botões Flutuantes para Expandir a Aba Lateral (Visíveis apenas quando recolhida) -->
+    <button id="expandSidebarLeftBtn" onclick="toggleSidebar()" class="fixed top-1/2 left-0 -translate-y-1/2 z-50 w-8 h-16 bg-indigo-600 hover:bg-indigo-500 text-white rounded-r-xl shadow-lg transition-all duration-300 transform -translate-x-full flex items-center justify-center cursor-pointer border border-l-0 border-indigo-400/30" title="Expandir Menu">
+        <i class="fa-solid fa-chevron-right"></i>
+    </button>
+    
+    <button id="expandSidebarRightBtn" onclick="toggleSidebar()" class="fixed top-1/2 right-0 -translate-y-1/2 z-50 w-8 h-16 bg-indigo-600 hover:bg-indigo-500 text-white rounded-l-xl shadow-lg transition-all duration-300 transform translate-x-full flex items-center justify-center cursor-pointer border border-r-0 border-indigo-400/30" title="Expandir Menu">
+        <i class="fa-solid fa-chevron-left"></i>
+    </button>
+
+    <!-- Top Navigation & Pomodoro Bar -->
+    <header class="sticky top-0 z-30 bg-white/95 dark:bg-darkCard/95 backdrop-blur-md border-b border-slate-200 dark:border-darkBorder shadow-sm">
+        <div class="max-w-[1920px] w-full mx-auto px-3 sm:px-5 py-2 space-y-2">
             
-            <div>
-                <label class="block text-gray-300 mb-1">Fase / Grupo</label>
-                <input type="text" id="tarefaFase" class="w-full p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-blue-500" placeholder="Ex: Engenharia">
-            </div>
-
-            <div>
-                <label class="block text-gray-300 mb-1">Depende de (Opcional)</label>
-                <select id="tarefaDependencia" onchange="aoMudarDependencia()" class="w-full p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-blue-500 text-yellow-300">
-                    <option value="">Nenhuma</option>
-                </select>
-            </div>
-            
-            <div>
-                <label class="block text-gray-300 mb-1">Início (Data e Hora) *</label>
-                <input type="datetime-local" id="tarefaInicio" required class="w-full p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-blue-500 transition-all">
-                <span id="avisoInicio" class="text-xs text-yellow-400 hidden mt-1">Sincronizado automaticamente.</span>
-            </div>
-
-            <div class="p-3 bg-gray-900 rounded border border-gray-700 mt-1">
-                <label class="block text-gray-300 mb-2 font-bold">Definir término por:</label>
-                <select id="tipoTermino" onchange="alternarModoTermino()" class="w-full p-2 mb-3 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-blue-500">
-                    <option value="data">Data Final Exata</option>
-                    <option value="duracao" selected>Tempo de Duração (8h/Dia)</option>
-                </select>
-
-                <div id="divDataFim" class="hidden">
-                    <label class="block text-gray-300 mb-1">Fim (Data e Hora) *</label>
-                    <input type="datetime-local" id="tarefaFim" class="w-full p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-blue-500">
-                </div>
-
-                <div id="divDuracao">
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-gray-300 mb-1">Quantidade *</label>
-                            <input type="number" id="tarefaDuracao" required min="0.1" step="0.1" value="1" class="w-full p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-blue-500">
+            <!-- LINHA 1: Identidade + Status + Sala (Esquerda) | Ações + Utilitários + Perfil (Direita) -->
+            <div id="headerMainRow" class="flex items-center justify-between gap-2 flex-wrap lg:flex-nowrap">
+                
+                <!-- Esquerda: Logo + Nome + Chave Online/Offline + Seletor de Sala -->
+                <div id="headerBrandAndRoomGroup" class="flex items-center gap-2 min-w-0">
+                    <!-- Bloco Logo + Título (Sempre juntos) -->
+                    <div id="headerLogoTitleBox" class="flex items-center gap-2 shrink-0">
+                        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-500 to-emerald-500 flex items-center justify-center text-white shadow-sm shadow-indigo-500/20 shrink-0">
+                            <i class="fa-solid fa-layer-group text-sm"></i>
                         </div>
-                        <div>
-                            <label class="block text-gray-300 mb-1">Unidade</label>
-                            <select id="tarefaUnidade" class="w-full p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-blue-500">
-                                <option value="dias">Dias</option>
-                                <option value="horas">Horas</option>
+                        <div class="flex items-center gap-1.5">
+                            <h1 class="text-base font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 to-emerald-500 dark:from-indigo-400 dark:to-emerald-400 bg-clip-text text-transparent shrink-0">
+                                TaskFlow
+                            </h1>
+                            <span class="hidden sm:inline-block text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 shrink-0">
+                                Engenharia
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Chave Seletora Online (Firebase) / Offline (Local) -->
+                    <div id="headerOnlineOfflineGroup" class="inline-flex items-center justify-between gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 shrink-0">
+                        <button type="button" id="onlineOfflineToggleBtn" onclick="toggleOnlineOfflineMode()" class="flex items-center gap-1.5 cursor-pointer select-none focus:outline-none group" title="Clique na chave para alternar entre ONLINE (Firebase Cloud) e OFFLINE (Local)">
+                            <span id="onlineOfflineTrack" class="relative inline-flex h-4 w-8 shrink-0 items-center rounded-full bg-emerald-500 transition-colors duration-200">
+                                <span id="onlineOfflineThumb" class="inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform duration-200 translate-x-4"></span>
+                            </span>
+                            <span id="cloudStatusBadge" class="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                                <span id="cloudStatusDot" class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span id="cloudStatusText">ONLINE</span>
+                            </span>
+                        </button>
+                        <button type="button" onclick="openAdminPanelModal()" class="text-slate-400 hover:text-indigo-500 transition text-[10px] pl-1.5 border-l border-slate-200 dark:border-slate-700" title="Configurações do Firebase Cloud">
+                            <i class="fa-solid fa-gear"></i>
+                        </button>
+                    </div>
+
+                    <span class="text-slate-300 dark:text-slate-700 hidden sm:inline">|</span>
+
+                    <!-- Filtro / Seletor Rápido de Troca de Sala no Cabeçalho + Botão Sala Não Atribuídas -->
+                    <div id="headerRoomControlGroup" class="flex items-center gap-1.5 min-w-0">
+                        <!-- Seletor Dropdown Rápido de Sala (Permite alternar entre Sala Pessoal/Geral e Sala de Não Atribuídas) -->
+                        <div id="headerAdminRoomWrapper" class="hidden items-center gap-1.5 px-2.5 py-1 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/15 border border-indigo-500/25 text-indigo-600 dark:text-indigo-400 transition">
+                            <i class="fa-solid fa-door-open text-xs shrink-0"></i>
+                            <select id="headerQuickRoomSelect" onchange="handleQuickRoomSwitch(this.value)" class="bg-transparent text-xs font-extrabold uppercase tracking-wider focus:outline-none cursor-pointer max-w-[190px] sm:max-w-[240px] truncate text-indigo-700 dark:text-indigo-300" title="Filtro de Troca Rápida de Sala">
+                                <option value="geral">SALA GERAL (TODAS)</option>
                             </select>
                         </div>
+
+                        <!-- Botão Rápido: Sala de Tarefas Não Atribuídas -->
+                        <button type="button" id="headerUnassignedRoomBtn" onclick="toggleUnassignedRoomView()" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-[11px] font-extrabold uppercase tracking-wider transition shrink-0" title="Abrir Sala de Tarefas Não Atribuídas (Sem Responsável)">
+                            <i class="fa-solid fa-inbox text-amber-500 text-xs"></i>
+                            <span class="hidden sm:inline">Não Atribuídas</span>
+                            <span id="headerUnassignedCountBadge" class="px-1.5 py-0.2 rounded-full bg-amber-500 text-white text-[9px] font-extrabold leading-tight">0</span>
+                        </button>
+
+                        <!-- Botão de Sala Atual / Trocar Conta -->
+                        <button type="button" id="headerRoomBtn" onclick="openRoomAuthModal(true)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 text-indigo-600 dark:text-indigo-400 text-xs font-extrabold uppercase tracking-wider transition" title="Clique para trocar de Sala ou Conta">
+                            <i class="fa-solid fa-user-Astronaut fa-door-open text-xs"></i>
+                            <span id="headerRoomBadge" class="truncate max-w-[160px]">SALA GERAL</span>
+                            <i class="fa-solid fa-chevron-down text-[9px] opacity-70"></i>
+                        </button>
+                    </div>
+
+                    <p id="lastSyncSubtext" class="hidden"></p>
+                </div>
+
+                <!-- Direita: Botões de Ação + Utilitários + Perfil Unificado -->
+                <div id="headerActionsAndProfileGroup" class="flex items-center gap-1.5 sm:gap-2 ml-auto">
+                    
+                    <!-- Botão Importar Pedido (.XLS) -->
+                    <button id="importExcelHeaderBtn" onclick="openExcelImportModal()" class="bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold text-xs px-2.5 py-1.5 rounded-xl shadow-sm flex items-center gap-1.5 transition shrink-0" title="Importar Pedido (.XLS / .XLSX) como Tarefa e Itens como Subtarefas">
+                        <i class="fa-solid fa-file-excel text-xs"></i>
+                        <span class="hidden sm:inline">Importar (.XLS)</span>
+                    </button>
+
+                    <!-- Botão Nova Tarefa -->
+                    <button id="newTaskHeaderBtn" onclick="openTaskModal()" class="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-semibold text-xs px-3 py-1.5 rounded-xl shadow-sm flex items-center gap-1.5 transition shrink-0">
+                        <i class="fa-solid fa-plus text-xs"></i>
+                        <span class="hidden sm:inline">Nova Tarefa</span>
+                    </button>
+
+                    <!-- Menu de Backup JSON -->
+                    <div class="relative" id="backupDropdownWrapper">
+                        <button id="backupDropdownBtn" onclick="toggleBackupDropdown(event)" class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center justify-center transition text-xs" title="Backup JSON & Dados">
+                            <i class="fa-solid fa-database"></i>
+                        </button>
+                        <div id="backupDropdownMenu" class="hidden absolute right-0 mt-1 w-64 rounded-xl bg-white dark:bg-darkCard shadow-xl border border-slate-200 dark:border-darkBorder py-2 z-50">
+                            <div class="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Importação & Backup</div>
+                            <button onclick="openExcelImportModal()" class="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2.5 text-emerald-600 dark:text-emerald-400 font-medium">
+                                <i class="fa-solid fa-file-excel w-4"></i> Importar Pedido (.XLS/.XLSX)
+                            </button>
+                            <hr class="my-1 border-slate-200 dark:border-slate-700">
+                            <button onclick="exportTasksJSON()" class="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2.5 text-slate-700 dark:text-slate-200">
+                                <i class="fa-solid fa-download text-indigo-500 w-4"></i> Exportar Backup JSON
+                            </button>
+                            <label class="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2.5 text-slate-700 dark:text-slate-200 cursor-pointer">
+                                <i class="fa-solid fa-upload text-emerald-500 w-4"></i> Importar Backup JSON
+                                <input type="file" id="importFileInput" accept=".json" class="hidden" onchange="importTasksJSON(event)">
+                            </label>
+                            <hr class="my-1 border-slate-200 dark:border-slate-700">
+                            <button onclick="openAdminPanelModal()" class="w-full text-left px-4 py-2 text-sm hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2.5 text-rose-600 dark:text-rose-400">
+                                <i class="fa-solid fa-trash-can w-4"></i> Limpar Tarefas (Admin)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Alternar Tema Claro/Escuro -->
+                    <button onclick="toggleTheme()" id="themeToggleBtn" class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-amber-400 border border-slate-200 dark:border-slate-700 flex items-center justify-center transition text-xs" title="Alternar Tema Claro/Escuro">
+                        <i class="fa-solid fa-sun" id="themeIcon"></i>
+                    </button>
+                    
+                    <!-- Seletor de Posição de Layout -->
+                    <div class="relative" id="layoutDropdownWrapper">
+                        <button id="layoutDropdownBtn" onclick="toggleLayoutDropdown(event)" class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center justify-center transition text-xs" title="Mudar Posição do Menu">
+                            <i class="fa-solid fa-border-all"></i>
+                        </button>
+                        <div id="layoutDropdownMenu" class="hidden absolute right-0 mt-1 w-48 rounded-xl bg-white dark:bg-darkCard shadow-xl border border-slate-200 dark:border-darkBorder py-2 z-50">
+                            <div class="px-4 py-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Layout do Menu</div>
+                            <button onclick="changeLayout('top')" class="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                                <i class="fa-solid fa-border-top w-4 text-indigo-500"></i> Superior
+                            </button>
+                            <button onclick="changeLayout('left')" class="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                                <i class="fa-solid fa-border-left w-4 text-indigo-500"></i> Esquerda
+                            </button>
+                            <button onclick="changeLayout('right')" class="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                                <i class="fa-solid fa-border-right w-4 text-indigo-500"></i> Direita
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Botão Recolher Aba (Apenas Sidebar) -->
+                    <button id="sidebarCollapseBtn" onclick="toggleSidebar()" class="collapse-btn-sidebar w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 items-center justify-center transition text-xs hidden lg:flex" title="Recolher Menu Lateral">
+                        <i class="fa-solid fa-angles-left" id="collapseIcon"></i>
+                    </button>
+
+                    <!-- Perfil do Usuário + Cargo Unificado (Admin / Membro) -->
+                    <div class="relative" id="userProfileDropdownWrapper">
+                        <button onclick="toggleUserProfileDropdown(event)" class="flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition" title="Conta conectada, Permissões e Painel Admin">
+                            <div id="headerUserAvatar" class="w-6 h-6 rounded-lg bg-gradient-to-tr from-indigo-600 to-purple-500 text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
+                                U
+                            </div>
+                            <span id="headerUserName" class="text-xs font-bold text-slate-700 dark:text-slate-200 hidden sm:inline max-w-[95px] truncate">Usuário</span>
+                            <span id="headerAdminBadge" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-slate-200/70 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                                <i id="headerAdminIcon" class="fa-solid fa-user text-[9px]"></i>
+                                <span id="headerAdminText" class="hidden md:inline">Membro</span>
+                            </span>
+                            <i class="fa-solid fa-chevron-down text-[9px] text-slate-400 ml-0.5"></i>
+                        </button>
+                        <div id="userProfileDropdownMenu" class="hidden absolute right-0 mt-1 w-64 rounded-xl bg-white dark:bg-darkCard shadow-xl border border-slate-200 dark:border-darkBorder py-2 z-50">
+                            <div class="px-4 py-2 border-b border-slate-100 dark:border-slate-800">
+                                <p class="text-[11px] text-slate-400 uppercase font-semibold">Conectado como</p>
+                                <div class="flex items-center justify-between gap-1">
+                                    <p id="menuUserFull" class="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">Usuário</p>
+                                    <span id="menuRolePill" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-100 dark:bg-slate-800 text-slate-500">MEMBRO</span>
+                                </div>
+                                <p id="menuUserLoginSub" class="text-[11px] text-slate-400 truncate">@usuario</p>
+                                <p class="text-xs text-indigo-500 font-medium flex items-center gap-1 mt-0.5">
+                                    <i class="fa-solid fa-lock text-[10px]"></i> Sala: <span id="menuRoomName" class="uppercase">GERAL</span>
+                                </p>
+                            </div>
+                            <button onclick="openRoomAuthModal(true)" class="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2.5 text-slate-700 dark:text-slate-200">
+                                <i class="fa-solid fa-door-open text-indigo-500 w-4"></i> Trocar Sala ou Conta
+                            </button>
+                            <button onclick="openChangePasswordModal()" class="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2.5 text-slate-700 dark:text-slate-200">
+                                <i class="fa-solid fa-key text-amber-500 w-4"></i> Trocar Minha Senha
+                            </button>
+                            <button id="menuUserDirBtn" onclick="openUserDirectoryModal()" class="hidden w-full text-left px-4 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2.5 text-slate-700 dark:text-slate-200">
+                                <i class="fa-solid fa-users-gear text-emerald-500 w-4"></i>
+                                <span>Cadastro & Permissões (Admin)</span>
+                                <span id="pendingUsersBadgeMenu" class="hidden ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white">0</span>
+                            </button>
+                            <button id="menuAdminPanelBtn" onclick="openAdminPanelModal()" class="hidden w-full text-left px-4 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2.5 text-slate-700 dark:text-slate-200">
+                                <i class="fa-solid fa-user-shield text-amber-500 w-4"></i> Painel do Administrador
+                            </button>
+                            <hr class="my-1 border-slate-200 dark:border-slate-700">
+                            <button onclick="logoutSession()" class="w-full text-left px-4 py-2 text-sm hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2.5 text-rose-600 dark:text-rose-400 font-medium">
+                                <i class="fa-solid fa-right-from-bracket w-4"></i> Sair / Bloquear Sala
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
-            
-            <div>
-                <label class="block text-gray-300 mb-1">% Concluído (0-100)</label>
-                <input type="number" id="tarefaPercentual" min="0" max="100" value="0" class="w-full p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-blue-500">
-            </div>
-            
-            <div class="flex gap-2 mt-2">
-                <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-200">Guardar</button>
-                <button type="button" onclick="limparFormulario()" class="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded transition duration-200">Cancelar</button>
-            </div>
-        </form>
 
-        <hr class="my-5 border-gray-700">
+            <!-- LINHA 2 COMPACTA: Ocultar Sub. Concluídas + Expandir/Recolher + Alternador de Vista (Kanban / Lista / Gantt) -->
+            <div class="pt-1.5 border-t border-slate-200/70 dark:border-slate-800/80 flex items-center justify-end gap-2 text-xs">
+                <div id="headerFiltersToolbar" class="flex flex-wrap sm:flex-nowrap items-center gap-1.5 justify-end min-w-0">
 
-        <h3 class="text-lg font-semibold text-gray-200 mb-2">🏖️ Feriados (Próx. 60 dias)</h3>
-        
-        <div id="listaFeriados60Dias" class="mb-4 bg-gray-900 rounded p-2 text-xs border border-gray-700 max-h-36 overflow-y-auto"></div>
+                    <!-- Botões Rápidos: Tela de Avisos + Tarefas Arquivadas -->
+                    <div id="headerAlertsAndArchiveRow" class="flex items-center gap-1.5 shrink-0">
+                        <button type="button" id="headerNotificationsBtn" onclick="openNotificationsModal()" class="relative inline-flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-[11px] font-bold transition cursor-pointer shrink-0" title="Abrir Tela de Avisos (Itens Aguardando & Alertas aos Responsáveis)">
+                            <i class="fa-solid fa-bell text-amber-500 text-[11px]"></i>
+                            <span>Avisos</span>
+                            <span id="headerNotificationsBadge" class="hidden px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[9px] font-extrabold leading-tight shadow-sm animate-pulse">0</span>
+                        </button>
 
-        <label class="block text-gray-400 text-xs mb-1">Adicionar Pausa Extra ou Feriado Municipal:</label>
-        <div class="flex gap-2 mb-2 text-sm">
-            <input type="date" id="inputFeriado" class="flex-1 p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:border-blue-500">
-            <button type="button" onclick="adicionarFeriado()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-3 rounded transition duration-200">+</button>
-        </div>
-        <div id="listaFeriadosUI" class="flex flex-wrap gap-2 mb-2 empty:hidden"></div>
+                        <button type="button" id="headerArchivedTasksBtn" onclick="openArchivedTasksModal()" class="inline-flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-indigo-500/15 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 text-[11px] font-semibold transition cursor-pointer shrink-0" title="Ver Tarefas Arquivadas e Restaurar">
+                            <i class="fa-solid fa-box-archive text-indigo-500 text-[10px]"></i>
+                            <span>Arquivadas</span>
+                            <span id="headerArchivedCountBadge" class="px-1.5 py-0.2 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[9px] font-bold leading-tight">0</span>
+                        </button>
+                    </div>
 
-        <hr class="my-5 border-gray-700">
+                    <!-- Linha combinada de Filtro de Subtarefas + Expandir/Recolher -->
+                    <div id="headerSubtaskAndExpandRow" class="flex items-center gap-1.5 shrink-0">
+                        <!-- Filtro para Ocultar Subtarefas Já Concluídas -->
+                        <label id="hideCompletedSubtasksLabel" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-medium text-slate-600 dark:text-slate-300 cursor-pointer select-none shrink-0" title="Ocultar subtarefas que já foram concluídas (no Kanban, Lista e Gantt)">
+                            <input type="checkbox" id="hideCompletedSubtasksToggle" onchange="toggleHideCompletedSubtasks(this.checked)" class="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-600 cursor-pointer">
+                            <span>Ocultar Sub. Concluídas</span>
+                        </label>
 
-        <h3 class="text-lg font-semibold text-gray-200 mb-3">💾 Estado do Projeto</h3>
-        <div id="statusSincronizacao" class="w-full bg-blue-900 text-blue-200 text-center py-2 rounded mb-2 text-sm font-bold shadow-inner">
-            A conectar à Nuvem...
-        </div>
-        
-        <div class="flex gap-2 mt-auto">
-            <button onclick="baixarProjeto()" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-2 rounded transition duration-200 text-xs">Download Backup</button>
-            <button onclick="abrirModalConfirmacao('limpar')" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-2 rounded transition duration-200 text-xs">Apagar Tudo</button>
-        </div>
-    </aside>
+                        <!-- Expandir / Recolher Todas -->
+                        <div id="headerExpandCollapseGroup" class="inline-flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 shrink-0">
+                            <button type="button" onclick="expandOrCollapseAllTasks(true)" class="px-2 py-0.5 rounded text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-darkCard transition flex items-center gap-1" title="Expandir detalhes de todas as tarefas">
+                                <i class="fa-solid fa-angles-down text-indigo-500 text-[10px]"></i>
+                            </button>
+                            <button type="button" onclick="expandOrCollapseAllTasks(false)" class="px-2 py-0.5 rounded text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-darkCard transition flex items-center gap-1" title="Recolher todas as tarefas ao cabeçalho">
+                                <i class="fa-solid fa-angles-up text-slate-400 text-[10px]"></i>
+                            </button>
+                        </div>
+                    </div>
 
-    <main class="flex-1 p-5 relative flex flex-col bg-gray-100 min-w-0">
-        
-        <div class="flex items-center justify-between mb-4 bg-white p-3 rounded-lg shadow-sm z-30 shrink-0">
-            <div class="flex items-center gap-3">
-                <h1 class="text-2xl font-bold text-gray-800">📊 Cronograma de Fabrico</h1>
-                <span class="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded shadow-sm border border-green-200">Cloud Sync Ativo</span>
-            </div>
-            <div class="flex items-center gap-2">
-                <label class="text-sm font-bold text-gray-600">Visualização:</label>
-                <select id="zoomGrafico" onchange="mudarZoom()" class="bg-gray-100 border border-gray-300 text-gray-700 text-sm font-semibold rounded focus:ring-blue-500 focus:border-blue-500 block p-1.5 cursor-pointer shadow-sm">
-                    <option value="auto">Ajustar à Tela (Total)</option>
-                    <option value="30">30 Dias (Detalhado)</option>
-                    <option value="60">60 Dias</option>
-                    <option value="90">90 Dias</option>
-                </select>
-            </div>
-        </div>
-        
-        <div id="master_container" class="flex-1 w-full bg-white rounded-lg shadow relative overflow-hidden flex flex-col">
-            <div id="coluna_fixa" class="absolute top-0 left-0 bottom-0 bg-white z-40 border-r border-gray-300 shadow-[2px_0_5px_rgba(0,0,0,0.1)] pointer-events-none overflow-hidden hidden"></div>
-            <div id="scroll_wrapper" class="flex-1 w-full relative overflow-auto custom-scrollbar">
-                <div id="grafico_div" class="min-h-full relative min-w-full"></div>
+                    <!-- Alternador Kanban vs Lista vs Gantt -->
+                    <div id="headerViewSwitcherGroup" class="inline-flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 shrink-0">
+                        <button onclick="setViewMode('kanban')" id="viewBtn-kanban" class="px-2.5 py-1 rounded-md text-[11px] font-semibold flex items-center justify-center gap-1 transition bg-white dark:bg-darkCard text-indigo-600 dark:text-indigo-400 shadow-sm" title="Visualização em Quadro Kanban">
+                            <i class="fa-solid fa-table-columns text-[10px]"></i> <span>Kanban</span>
+                        </button>
+                        <button onclick="setViewMode('list')" id="viewBtn-list" class="px-2.5 py-1 rounded-md text-[11px] font-semibold flex items-center justify-center gap-1 transition text-slate-600 dark:text-slate-400" title="Visualização em Lista Simplificada">
+                            <i class="fa-solid fa-list-ul text-[10px]"></i> <span>Lista</span>
+                        </button>
+                        <button onclick="setViewMode('gantt')" id="viewBtn-gantt" class="px-2.5 py-1 rounded-md text-[11px] font-semibold flex items-center justify-center gap-1 transition text-slate-600 dark:text-slate-400" title="Visualização em Gráfico de Gantt">
+                            <i class="fa-solid fa-chart-gantt text-[10px]"></i> <span>Gantt</span>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
+    </header>
 
-        <div id="menuFlutuante" class="hidden absolute bg-white border border-gray-200 rounded shadow-lg z-50 overflow-hidden w-32">
-            <button onclick="editarTarefaMenu()" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600">✏️ Editar</button>
-            <button onclick="abrirModalConfirmacao('excluir')" class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">🗑️ Eliminar</button>
+    <!-- Main Container -->
+    <main class="flex-1 max-w-[1920px] w-full min-w-0 mx-auto px-3 sm:px-5 py-3 space-y-3">
+
+        <!-- Dynamic Content Area: List View OR Kanban View -->
+        <div id="tasksContainer">
+            <!-- Populated dynamically via JS -->
         </div>
+
     </main>
 
-    <div id="modalConfirmacao" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-        <div class="bg-white rounded-lg p-6 w-96 shadow-2xl">
-            <h3 class="text-lg font-bold text-gray-900 mb-2" id="modalTitulo">Confirmação</h3>
-            <p class="text-gray-600 mb-6" id="modalTexto">Tem a certeza?</p>
-            <div class="flex justify-end gap-3">
-                <button onclick="fecharModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">Cancelar</button>
-                <button id="modalBtnConfirmar" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Confirmar</button>
+    <!-- Create / Edit Task Modal (Layout Compacto para máximo aproveitamento de espaço) -->
+    <div id="taskModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+        <div class="bg-white dark:bg-darkCard w-full max-w-2xl rounded-2xl border border-slate-200 dark:border-darkBorder shadow-2xl overflow-hidden my-3 animate-fadeIn">
+            
+            <!-- Modal Header Compacto -->
+            <div class="px-4 py-2.5 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-darkBorder flex items-center justify-between">
+                <h3 id="modalTitle" class="text-sm sm:text-base font-bold flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square text-indigo-500"></i>
+                    <span>Nova Tarefa</span>
+                </h3>
+                <button onclick="closeTaskModal()" class="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-700/50 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <!-- Modal Form Compacto -->
+            <form id="taskForm" data-scroll-id="modal_task_form" onscroll="recordContainerScroll(this)" onsubmit="saveTaskForm(event)" class="p-4 space-y-2.5 max-h-[86vh] overflow-y-auto">
+                <input type="hidden" id="taskIdInput">
+
+                <!-- Linha 1 Compacta: Título, Descrição e Responsável na mesma grade -->
+                <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                    <div class="sm:col-span-5">
+                        <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">Título da Tarefa *</label>
+                        <input type="text" id="taskTitleInput" autocomplete="off" required placeholder="Ex: Pedido #53696..." class="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-indigo-500 text-xs font-semibold">
+                    </div>
+                    <div class="sm:col-span-4">
+                        <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">Descrição / Local</label>
+                        <textarea id="taskDescInput" rows="1" placeholder="Observações, loja ou local..." class="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-indigo-500 text-xs resize-y min-h-[30px] max-h-20"></textarea>
+                    </div>
+                    <div class="sm:col-span-3">
+                        <div class="flex items-center justify-between mb-0.5">
+                            <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Responsável(is)</label>
+                            <button type="button" onclick="openMultiMemberPickerModal({ mode: 'input_select', selectId: 'taskAuthorInput', title: 'Responsáveis pela Tarefa Principal' })" class="text-[10px] font-extrabold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5" title="Selecionar mais de um membro responsável para esta tarefa">
+                                <i class="fa-solid fa-user-plus text-[9px]"></i> + Membros
+                            </button>
+                        </div>
+                        <select id="taskAuthorInput" onchange="if(this.value==='__MULTI_PICKER__'){ openMultiMemberPickerModal({ mode: 'input_select', selectId: 'taskAuthorInput', title: 'Responsáveis pela Tarefa Principal' }); }" class="w-full px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-indigo-500 text-xs font-semibold cursor-pointer">
+                            <option value="">👤 Sem responsável</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Linha 2 Compacta: Prioridade, Vencimento, Status e Execução Simultânea numa única linha -->
+                <div class="grid grid-cols-2 sm:grid-cols-12 gap-2 items-end">
+                    <div class="sm:col-span-3">
+                        <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">Prioridade *</label>
+                        <select id="taskPriorityInput" class="w-full px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-indigo-500 text-xs font-semibold">
+                            <option value="baixa">🌱 Baixa</option>
+                            <option value="media" selected>📌 Média</option>
+                            <option value="alta">⚡ Alta</option>
+                            <option value="urgente">🔥 Urgente</option>
+                        </select>
+                    </div>
+                    <div class="sm:col-span-3">
+                        <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">Vencimento *</label>
+                        <input type="date" id="taskDueDateInput" required class="w-full px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-indigo-500 text-xs font-semibold">
+                    </div>
+                    <div class="sm:col-span-3">
+                        <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">Status *</label>
+                        <select id="taskStatusInput" onchange="handleModalTaskStatusChange(this.value)" class="w-full px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-indigo-500 text-xs font-semibold">
+                            <option value="todo">📋 A Fazer</option>
+                            <option value="in_progress">⏳ Em Andamento</option>
+                            <option value="waiting">⏸️ Aguardando</option>
+                            <option value="done">✅ Concluído</option>
+                        </select>
+                    </div>
+                    <div class="col-span-2 sm:col-span-3">
+                        <label class="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/25 cursor-pointer select-none text-[11px] font-bold text-cyan-800 dark:text-cyan-300 hover:bg-cyan-500/15 transition" title="Executar Simultaneamente: Distribuir/Intercalar subtarefas com outra tarefa paralela na Timeline">
+                            <input type="checkbox" id="taskSimultaneousInput" class="rounded text-cyan-600 focus:ring-cyan-500 w-3.5 h-3.5 cursor-pointer shrink-0">
+                            <i class="fa-solid fa-code-branch text-cyan-500 text-[10px]"></i>
+                            <span class="truncate">Simultânea</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Campo de Observação / Motivo quando a Tarefa está em "Aguardando" -->
+                <div id="modalTaskWaitingReasonBox" class="hidden p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-1">
+                    <label class="block text-[10px] font-extrabold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                        <i class="fa-solid fa-circle-pause mr-1"></i>Observação / Motivo de Aguardando *
+                    </label>
+                    <input type="text" id="taskWaitingReasonInput" autocomplete="off" placeholder="Informe o motivo da espera (ex: Aguardando aprovação do cliente, falta de material...)" class="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-amber-500/40 focus:outline-none focus:border-amber-500 text-xs font-medium text-slate-800 dark:text-slate-100">
+                </div>
+
+                <!-- Subtasks (Itens) & Tarefas Internas Atribuídas com Dependências (Sem redundância: Distribuição unificada no botão) -->
+                <div class="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            <i class="fa-solid fa-boxes-stacked text-indigo-500 mr-1"></i>Subtarefas, Horas (Base 8h/dia) & Equipe
+                        </label>
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <input type="hidden" id="taskMacroHoursInput">
+                            <input type="hidden" id="modalBatchSubtaskHoursInput">
+                            <span id="modalTotalHoursBadge" class="px-2 py-0.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 text-[11px] font-extrabold">
+                                <i class="fa-regular fa-clock mr-1"></i>Total: 0.0h (0.0d)
+                            </span>
+                            <button type="button" id="groupModalSubtasksBtn" onclick="groupSelectedModalSubtasks()" class="hidden px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold shadow-sm transition flex items-center gap-1.5" title="Agrupar as subtarefas marcadas na lista abaixo em uma única subtarefa">
+                                <i class="fa-solid fa-object-group text-[10px]"></i>
+                                <span>Agrupar Selecionadas (<span id="groupModalSubtasksCount">0</span>)</span>
+                            </button>
+                            <button type="button" onclick="autoDistributeModalSubtaskHours('macro')" class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold shadow-sm transition flex items-center gap-1.5" title="Distribuir Tempo por Tarefa Macro ou Horas por Subtarefa">
+                                <i class="fa-solid fa-stopwatch text-[10px]"></i>
+                                <span>Distribuir Tempo (Macro / Subtarefa)</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-1.5">
+                        <input type="text" id="newSubtaskInput" autocomplete="off" onkeydown="handleSubtaskEnter(event)" placeholder="Adicionar subtarefa/item..." class="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-indigo-500 text-xs">
+                        <div class="flex items-center gap-1 sm:w-24 shrink-0" title="Tempo estimado em horas (8h = 1 dia útil)">
+                            <input type="number" id="newSubtaskHoursInput" min="0.1" step="0.1" value="2" class="w-full px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-amber-500 text-xs font-mono font-bold text-center">
+                            <span class="text-[10px] font-bold text-slate-400">h</span>
+                        </div>
+                        <div class="flex items-center gap-1 sm:w-48 shrink-0">
+                            <select id="newSubtaskAssigneeInput" onchange="if(this.value==='__MULTI_PICKER__'){ openMultiMemberPickerModal({ mode: 'input_select', selectId: 'newSubtaskAssigneeInput', title: 'Membros da Nova Subtarefa' }); }" class="w-full px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-indigo-500 text-xs cursor-pointer">
+                                <option value="">👤 Sem membro</option>
+                            </select>
+                            <button type="button" onclick="openMultiMemberPickerModal({ mode: 'input_select', selectId: 'newSubtaskAssigneeInput', title: 'Membros da Nova Subtarefa' })" class="px-2 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-600 text-indigo-600 dark:text-indigo-400 hover:text-white border border-indigo-500/25 text-xs font-bold transition shrink-0" title="Selecionar mais de um membro para a subtarefa">
+                                <i class="fa-solid fa-users text-[10px]"></i>
+                            </button>
+                        </div>
+                        <button type="button" onclick="addSubtaskToModal()" class="px-3 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-bold text-xs transition shrink-0">
+                            + Adicionar
+                        </button>
+                    </div>
+                    <ul id="modalSubtasksList" data-scroll-id="modal_subtasks_list" onscroll="recordContainerScroll(this)" class="space-y-2 max-h-96 overflow-y-auto pt-0.5 pr-1"></ul>
+                </div>
+
+                <!-- Modal Footer Compacto -->
+                <div class="flex items-center justify-end gap-2 pt-2.5 border-t border-slate-200 dark:border-slate-700">
+                    <button type="button" onclick="closeTaskModal()" class="px-3.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-floppy-disk"></i> Salvar Tarefa
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Room Authentication & Account Registration Modal -->
+    <div id="roomAuthModal" class="fixed inset-0 z-50 hidden bg-slate-900/75 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white dark:bg-darkCard w-full max-w-lg rounded-2xl border border-slate-200 dark:border-darkBorder shadow-2xl overflow-hidden my-8">
+            <div class="px-6 py-4 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-darkBorder flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold leading-tight">Controle de Acesso & Salas</h3>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Entre com sua conta ou cadastre novos usuários e salas</p>
+                    </div>
+                </div>
+                <button type="button" id="closeAuthModalBtn" onclick="closeRoomAuthModal()" class="hidden w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Mode Switcher Tabs: Entrar vs Criar Sala vs Cadastrar Conta -->
+            <div class="grid grid-cols-3 bg-slate-100 dark:bg-slate-800/90 p-1.5 m-5 mb-0 rounded-xl border border-slate-200 dark:border-slate-700 gap-1">
+                <button type="button" id="authTabJoinBtn" onclick="switchAuthTab('join')" class="py-2 px-2 rounded-lg text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1.5 transition bg-white dark:bg-darkCard text-indigo-600 dark:text-indigo-400 shadow-sm">
+                    <i class="fa-solid fa-right-to-bracket"></i> <span>Entrar</span>
+                </button>
+                <button type="button" id="authTabRegisterUserBtn" onclick="switchAuthTab('register_user')" class="py-2 px-2 rounded-lg text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1.5 transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+                    <i class="fa-solid fa-user-plus"></i> <span>Cadastrar Conta</span>
+                </button>
+                <button type="button" id="authTabCreateBtn" onclick="switchAuthTab('create')" class="py-2 px-2 rounded-lg text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1.5 transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+                    <i class="fa-solid fa-crown text-amber-500"></i> <span>Nova Sala (Admin)</span>
+                </button>
+            </div>
+
+            <form id="roomAuthForm" onsubmit="handleRoomAuthSubmit(event)" class="p-6 pt-4 space-y-4">
+                <!-- Error / Status Alert Inside Auth Modal -->
+                <div id="authModalAlert" class="hidden p-3 rounded-xl text-xs font-medium border"></div>
+
+                <!-- CREDENTIALS BLOCK (Shown in Join Room & Create Room Tabs) -->
+                <div id="authCredentialsBlock" class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-id-badge"></i> Sua Conta Cadastrada
+                        </span>
+                        <button type="button" onclick="switchAuthTab('register_user')" class="text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline font-semibold">
+                            + Não tem conta? Cadastre-se
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                    Usuário / Login *
+                                </label>
+                                <button type="button" onclick="loadExistingUsersDropdown(true)" class="text-[10px] text-indigo-500 hover:underline" title="Recarregar usuários da nuvem">
+                                    <i id="refreshUsersIcon" class="fa-solid fa-rotate"></i>
+                                </button>
+                            </div>
+                            <select id="authUserSelect" onchange="handleUserSelectChange()" class="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-indigo-500 text-xs font-semibold">
+                                <option value="">Carregando contas...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                    Senha Pessoal *
+                                </label>
+                                <div class="flex items-center gap-2">
+                                    <button type="button" onclick="openChangePasswordModal()" class="text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1" title="Abrir janela para alterar sua senha">
+                                        <i class="fa-solid fa-key text-[10px]"></i> Trocar senha
+                                    </button>
+                                    <span class="text-slate-300 dark:text-slate-600">•</span>
+                                    <button type="button" onclick="recoverPasswordViaWhatsApp()" class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1" title="Enviar senha para o WhatsApp cadastrado deste usuário">
+                                        <i class="fa-brands fa-whatsapp text-xs"></i> Esqueceu?
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="relative">
+                                <input type="password" id="authUserPassInput" placeholder="Sua senha..." class="w-full pl-3 pr-8 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-indigo-500 text-xs">
+                                <button type="button" onclick="togglePasswordVisibility('authUserPassInput', 'authUserPassEye')" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                                    <i id="authUserPassEye" class="fa-regular fa-eye text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Hidden fallback for legacy name -->
+                    <input type="hidden" id="authUserInput">
+                </div>
+
+                <!-- ================= TAB 1: JOIN EXISTING ROOM ================= -->
+                <div id="authJoinSection" class="space-y-4">
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                Selecionar Sala Existente *
+                            </label>
+                            <button type="button" onclick="loadExistingRoomsDropdown(true)" class="text-[11px] text-indigo-500 hover:text-indigo-400 font-semibold flex items-center gap-1">
+                                <i id="refreshRoomsIcon" class="fa-solid fa-rotate text-[10px]"></i> Atualizar Lista
+                            </button>
+                        </div>
+                        <div class="relative">
+                            <i class="fa-solid fa-list-ul absolute left-3.5 top-1/2 -translate-y-1/2 text-indigo-500 text-xs pointer-events-none"></i>
+                            <select id="authRoomSelect" onchange="handleRoomSelectChange()" class="w-full pl-9 pr-8 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-indigo-500 text-sm font-semibold text-slate-800 dark:text-slate-100">
+                                <option value="">Carregando salas criadas...</option>
+                            </select>
+                        </div>
+                        <p id="roomsCountHint" class="text-[11px] text-slate-400 mt-1">
+                            Escolha uma das salas cadastradas na nuvem. O acesso exige apenas a sua <strong>Senha Pessoal</strong> acima.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- ================= TAB 2: REGISTER USER / ADMIN ACCOUNT ================= -->
+                <div id="authRegisterUserSection" class="hidden space-y-3.5">
+                    <div class="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-700 dark:text-indigo-300 flex items-start gap-2">
+                        <i class="fa-solid fa-user-shield mt-0.5 text-indigo-500"></i>
+                        <span><strong>Autorização do Administrador Obrigatória:</strong> Todo novo cadastro precisa ser autorizado por um Administrador (informando a senha do Admin abaixo ou enviando solicitação para aprovação no painel do Administrador).</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                                Nome Completo / Exibição *
+                            </label>
+                            <div class="relative">
+                                <i class="fa-solid fa-user absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                                <input type="text" id="regFullNameInput" placeholder="Ex: Ana Silva" class="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-indigo-500 text-sm">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                                Login de Acesso *
+                            </label>
+                            <div class="relative">
+                                <i class="fa-solid fa-at absolute left-3.5 top-1/2 -translate-y-1/2 text-indigo-500 text-xs"></i>
+                                <input type="text" id="regUsernameInput" placeholder="Ex: ana.silva" class="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-indigo-500 text-sm lowercase">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                                Senha Pessoal *
+                            </label>
+                            <div class="relative">
+                                <i class="fa-solid fa-lock absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-500 text-xs"></i>
+                                <input type="password" id="regUserPassInput" placeholder="Crie sua senha..." class="w-full pl-9 pr-9 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-indigo-500 text-sm">
+                                <button type="button" onclick="togglePasswordVisibility('regUserPassInput', 'regUserPassEye')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                                    <i id="regUserPassEye" class="fa-regular fa-eye text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                                Perfil / Tipo de Conta *
+                            </label>
+                            <select id="regUserRoleSelect" onchange="toggleRegAdminKeyField()" class="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-indigo-500 text-sm font-semibold">
+                                <option value="member">👤 Usuário / Membro</option>
+                                <option value="admin">👑 Administrador</option>
+                            </select>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                                <i class="fa-brands fa-whatsapp text-emerald-500 mr-1"></i> Número de WhatsApp (com DDD) *
+                            </label>
+                            <div class="relative">
+                                <i class="fa-brands fa-whatsapp absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-500 text-sm"></i>
+                                <input type="tel" id="regWhatsappInput" placeholder="Ex: (11) 99999-9999 ou 5511999999999" class="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-emerald-500 text-sm">
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-1">Utilizado para envio/recuperação de senha via WhatsApp em caso de esquecimento.</p>
+                        </div>
+                    </div>
+
+                    <!-- Shown for all registrations: Admin password for instant activation OR leave blank to request approval -->
+                    <div id="regAdminSecretContainer" class="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                            <i class="fa-solid fa-user-check mr-1"></i> Senha do Administrador (Para Liberação Imediata)
+                        </label>
+                        <div class="relative">
+                            <i class="fa-solid fa-key absolute left-3.5 top-1/2 -translate-y-1/2 text-amber-500 text-xs"></i>
+                            <input type="password" id="regAdminMasterKeyInput" placeholder="Senha do Admin (ou deixe em branco p/ solicitar aprovação)..." class="w-full pl-9 pr-10 py-2 rounded-xl bg-white dark:bg-slate-800 border border-amber-500/40 focus:outline-none focus:border-amber-500 text-xs">
+                            <button type="button" onclick="togglePasswordVisibility('regAdminMasterKeyInput', 'regAdminMasterEye')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                                <i id="regAdminMasterEye" class="fa-regular fa-eye text-xs"></i>
+                            </button>
+                        </div>
+                        <p id="regAdminKeyHint" class="text-[11px] text-amber-700 dark:text-amber-300">
+                            Peça a um Administrador para digitar a senha dele aqui para ativar sua conta na hora, ou deixe em branco para enviar seu cadastro para a fila de aprovação do Administrador.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- ================= TAB 3: CREATE NEW EMPTY ROOM ================= -->
+                <div id="authCreateSection" class="hidden space-y-3.5">
+                    <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-700 dark:text-amber-300 flex items-start gap-2">
+                        <i class="fa-solid fa-crown mt-0.5 text-amber-500"></i>
+                        <span><strong>Exclusivo para Administradores:</strong> Apenas contas com perfil de <strong>Administrador</strong> podem criar novas salas. A sala começará <strong>100% vazia</strong>.</span>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                            Nome / Código da Nova Sala *
+                        </label>
+                        <div class="relative">
+                            <i class="fa-solid fa-folder-plus absolute left-3.5 top-1/2 -translate-y-1/2 text-indigo-500 text-xs"></i>
+                            <input type="text" id="authNewRoomNameInput" placeholder="Ex: CASA, TRABALHO, FACULDADE..." class="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-indigo-500 text-sm font-bold uppercase tracking-wider">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Remember Session Checkbox -->
+                <div class="flex items-center justify-between pt-1">
+                    <label class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 cursor-pointer select-none">
+                        <input type="checkbox" id="authRememberToggle" checked class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-600">
+                        <span>Lembrar meu acesso neste navegador</span>
+                    </label>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" id="authSubmitBtn" class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-semibold text-sm shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 transition">
+                    <i class="fa-solid fa-right-to-bracket"></i>
+                    <span id="authSubmitBtnText">Entrar na Sala Selecionada</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Room Administrator Panel Modal -->
+    <div id="adminPanelModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white dark:bg-darkCard w-full max-w-lg rounded-2xl border border-slate-200 dark:border-darkBorder shadow-2xl overflow-hidden my-8">
+            <div class="px-6 py-4 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-darkBorder flex items-center justify-between">
+                <h3 class="text-base font-bold flex items-center gap-2">
+                    <i class="fa-solid fa-user-shield text-amber-500"></i>
+                    <span>Painel de Administração • Sala <span id="adminModalRoomLabel" class="text-indigo-500 uppercase"></span></span>
+                </h3>
+                <button type="button" onclick="closeAdminPanelModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-5 max-h-[82vh] overflow-y-auto">
+                <!-- Current Admin Status Banner -->
+                <div id="adminStatusBanner" class="p-3.5 rounded-xl border text-xs flex items-center justify-between gap-3">
+                    <!-- Populated via JS -->
+                </div>
+
+                <!-- Section: Configuração do Firebase Cloud Firestore (Sincronização em Tempo Real) -->
+                <div class="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/25 space-y-3">
+                    <div class="flex items-center justify-between gap-2">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-cloud-arrow-up text-sm text-amber-500"></i> Sincronização em Nuvem (Google Firebase Firestore)
+                        </h4>
+                        <span id="fbAdminConfigStatusBadge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-500/15 text-slate-600 dark:text-slate-300 border border-slate-500/30">
+                            Modo Local
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                        Cole abaixo o objeto <code>firebaseConfig</code> (ou JSON) gerado no <strong>Firebase Console &rarr; Configurações do Projeto &rarr; Seus aplicativos (Web)</strong> para sincronizar tarefas, salas, usuários e jornada em tempo real entre todos os computadores:
+                    </p>
+
+                    <div class="space-y-2.5 pt-1">
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">
+                                Objeto ou JSON de Configuração do Firebase (<code>apiKey</code>, <code>projectId</code>, <code>appId</code>...)
+                            </label>
+                            <textarea id="fbConfigJsonInput" rows="4" placeholder='Cole aqui o trecho do Firebase, ex:
+{
+  "apiKey": "AIzaSy...",
+  "authDomain": "seu-projeto.firebaseapp.com",
+  "projectId": "seu-projeto",
+  "appId": "1:123456:web:abcdef"
+}' class="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[11px] font-mono text-slate-700 dark:text-slate-200 focus:outline-none focus:border-indigo-500"></textarea>
+                        </div>
+
+                        <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-indigo-500/20">
+                            <div class="flex items-center gap-1.5">
+                                <button type="button" onclick="disconnectFirebaseAndUseLocal()" class="px-2.5 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-rose-500/15 text-slate-600 dark:text-slate-300 hover:text-rose-600 text-[11px] font-semibold transition flex items-center gap-1" title="Desativar nuvem e operar apenas no navegador local">
+                                    <i class="fa-solid fa-plug-circle-xmark text-[10px]"></i> Usar Apenas Local
+                                </button>
+                                <button type="button" onclick="pushAllLocalDataToFirebaseNow()" class="px-2.5 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[11px] font-bold transition flex items-center gap-1" title="Enviar todas as tarefas, salas e usuários locais atuais para o Firebase">
+                                    <i class="fa-solid fa-cloud-arrow-up text-[10px]"></i> Enviar Dados Locais p/ Nuvem
+                                </button>
+                            </div>
+                            <button type="button" onclick="saveAndConnectFirebaseFromModal()" class="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-bolt text-[10px]"></i> Salvar & Conectar Firebase
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section: Configuração da API do WhatsApp -->
+                <div class="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/25 space-y-3">
+                    <div class="flex items-center justify-between gap-2">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                            <i class="fa-brands fa-whatsapp text-sm"></i> Integração com API do WhatsApp
+                        </h4>
+                        <span id="waApiActiveModeBadge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                            API Ativa
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                        Configure o provedor da API do WhatsApp para envio automático de recuperação de senha e notificações de tarefas atribuídas aos membros:
+                    </p>
+
+                    <div class="space-y-3 pt-1">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">Provedor da API do WhatsApp</label>
+                            <select id="waApiProviderSelect" onchange="handleWaApiProviderChange()" class="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-semibold focus:outline-none focus:border-emerald-500">
+                                <option value="meta_cloud">☁️ Meta WhatsApp Cloud API Oficial (graph.facebook.com)</option>
+                                <option value="evolution">🚀 Evolution API v2 (POST /message/sendText/{instance})</option>
+                                <option value="zapi">⚡ Z-API / Webhook REST JSON Personalizado</option>
+                                <option value="direct_api">🔗 API Oficial Web Direta (api.whatsapp.com/send)</option>
+                            </select>
+                        </div>
+
+                        <!-- Campos para Meta Cloud API -->
+                        <div id="waConfigMetaFields" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <div>
+                                <label class="block text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Phone Number ID (Meta) *</label>
+                                <input type="text" id="waMetaPhoneIdInput" placeholder="Ex: 105928374651928" class="w-full px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Bearer Access Token (Meta) *</label>
+                                <input type="password" id="waMetaTokenInput" placeholder="EAAGm0PX4ZCps..." class="w-full px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-mono">
+                            </div>
+                        </div>
+
+                        <!-- Campos para Evolution API / Z-API / Webhook Custom -->
+                        <div id="waConfigCustomFields" class="hidden space-y-2.5">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                <div class="sm:col-span-2">
+                                    <label class="block text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Endpoint URL da API *</label>
+                                    <input type="url" id="waCustomUrlInput" placeholder="Ex: https://sua-api.com/message/sendText/instancia" class="w-full px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-mono">
+                                </div>
+                                <div class="sm:col-span-2">
+                                    <label class="block text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">API Key / Token (Header apikey ou Authorization)</label>
+                                    <input type="password" id="waCustomApiKeyInput" placeholder="Chave de autenticação da API..." class="w-full px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-mono">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-emerald-500/20">
+                            <label class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 cursor-pointer select-none">
+                                <input type="checkbox" id="waAutoNotifyAssignToggle" class="rounded text-emerald-600 w-3.5 h-3.5">
+                                <span>Notificar membro via API ao atribuir tarefa/subtarefa</span>
+                            </label>
+                            <div class="flex items-center gap-2">
+                                <button type="button" onclick="testWhatsAppApiConnection()" class="px-3 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition flex items-center gap-1">
+                                    <i class="fa-solid fa-vial text-[10px] text-emerald-500"></i> Testar Envio
+                                </button>
+                                <button type="button" onclick="saveWhatsAppApiSettings()" class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition flex items-center gap-1">
+                                    <i class="fa-solid fa-floppy-disk text-[10px]"></i> Salvar API
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section: Danger Zone (Clear All Tasks or Delete Room) -->
+                <div class="p-4 rounded-xl bg-rose-500/5 border border-rose-500/20 space-y-3">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Ações Exclusivas de Contas Administradoras
+                    </h4>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                        Usuários com perfil de <strong>Administrador</strong> podem limpar todas as tarefas desta sala ou excluí-la da lista.
+                    </p>
+                    <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+                        <button type="button" onclick="adminClearRoomTasks()" class="px-3.5 py-2 rounded-xl bg-rose-600/15 hover:bg-rose-600 hover:text-white text-rose-600 dark:text-rose-400 border border-rose-500/30 text-xs font-semibold transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-broom"></i> Limpar Todas as Tarefas da Sala
+                        </button>
+                        <button type="button" onclick="adminDeleteEntireRoom()" class="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-trash-can"></i> Excluir Sala Permanentemente
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex justify-end pt-2 border-t border-slate-200 dark:border-slate-700">
+                    <button type="button" onclick="closeAdminPanelModal()" class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-medium">
+                        Fechar
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
-    <script>
-        // INICIALIZAÇÃO FIREBASE (Chaves do utilizador)
-        const firebaseConfig = {
-            apiKey: "AIzaSyB7lrHpcHhFd19V7mtG3npWlGrys-_acC8",
-            authDomain: "diagrama-de-gantt-ac99d.firebaseapp.com",
-            projectId: "diagrama-de-gantt-ac99d",
-            storageBucket: "diagrama-de-gantt-ac99d.firebasestorage.app",
-            messagingSenderId: "419019374257",
-            appId: "1:419019374257:web:b593a4cb2a439e7d2b6c90",
-            measurementId: "G-KT7S87X0RH"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-        const refProjeto = database.ref('cronograma_producao_v1');
+    <!-- User & Admin Directory / Registration Management Modal -->
+    <div id="userDirectoryModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white dark:bg-darkCard w-full max-w-4xl rounded-2xl border border-slate-200 dark:border-darkBorder shadow-2xl overflow-hidden my-8">
+            <div class="px-6 py-4 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-darkBorder flex items-center justify-between">
+                <div>
+                    <h3 class="text-base font-bold flex items-center gap-2">
+                        <i class="fa-solid fa-user-lock text-emerald-500"></i>
+                        <span>Gestão de Contas e Permissões de Membros</span>
+                    </h3>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">Cadastre usuários e personalize individualmente o que cada membro pode executar nas salas</p>
+                </div>
+                <button type="button" onclick="closeUserDirectoryModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
 
-        google.charts.load('current', {'packages':['gantt']});
-        google.charts.setOnLoadCallback(inicializarApp);
+            <div class="p-6 space-y-5 max-h-[82vh] overflow-y-auto">
+                <!-- Quick Create User / Admin Form Inside Directory -->
+                <form onsubmit="handleDirectoryCreateUser(event)" class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-user-plus"></i> Cadastrar Novo Usuário ou Administrador
+                        </h4>
+                        <span class="text-[11px] text-slate-400">Sincronizado na nuvem em tempo real</span>
+                    </div>
 
-        let dadosProjeto = [];
-        let listaFeriados = []; 
-        let feriadosNacionais = []; 
-        let chart = null, dataTable = null;
-        let idTarefaSelecionadaMenu = null, acaoPendenteModal = null; 
-        let mouseX = 0, mouseY = 0;
-        let requiresScrollToToday = true; 
-        
-        document.addEventListener('mousemove', (e) => { mouseX = e.clientX; mouseY = e.clientY; });
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Nome de Exibição *</label>
+                            <input type="text" id="dirFullNameInput" required placeholder="Ex: Carlos Mendes" class="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Login (@usuario) *</label>
+                            <input type="text" id="dirUsernameInput" required placeholder="Ex: carlos" class="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs lowercase">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1"><i class="fa-brands fa-whatsapp text-emerald-500 mr-1"></i>WhatsApp (DDD) *</label>
+                            <input type="tel" id="dirWhatsappInput" required placeholder="(11) 99999-9999" class="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Senha Pessoal *</label>
+                            <input type="password" id="dirPasswordInput" required placeholder="Senha do usuário..." class="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Nível de Conta *</label>
+                            <select id="dirRoleSelect" onchange="handleDirRolePresetChange()" class="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-semibold">
+                                <option value="member">👤 Usuário Membro</option>
+                                <option value="admin">👑 Administrador</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Predefinição de Permissão</label>
+                            <select id="dirPermPresetSelect" onchange="applyDirFormPermPreset(this.value)" class="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs font-semibold">
+                                <option value="full">⚡ Editor Completo</option>
+                                <option value="collaborator">🛠️ Colaborador (Sem Excluir)</option>
+                                <option value="status_only">☑️ Apenas Mover Status/Check</option>
+                                <option value="viewer">👁️ Somente Leitura</option>
+                            </select>
+                        </div>
+                    </div>
 
-        function gerarFeriadosNacionais() {
-            let feriados = [];
-            const nomesFeriadosFixos = { '01-01': 'Ano Novo', '04-21': 'Tiradentes', '05-01': 'Dia do Trabalhador', '09-07': 'Independência', '10-12': 'Nossa Sra. Aparecida', '11-02': 'Finados', '11-15': 'Proc. da República', '11-20': 'Consciência Negra', '12-25': 'Natal' };
-            const anoAtual = new Date().getFullYear();
-            for (let ano = anoAtual - 1; ano <= anoAtual + 3; ano++) {
-                for (const [mesDia, nome] of Object.entries(nomesFeriadosFixos)) feriados.push({ data: `${ano}-${mesDia}`, nome: nome });
-                let a = ano % 19, b = Math.floor(ano / 100), c = ano % 100;
-                let h = (19 * a + b - Math.floor(b / 4) - Math.floor((b - Math.floor((b + 8) / 25) + 1) / 3) + 15) % 30;
-                let l = (32 + 2 * (b % 4) + 2 * Math.floor(c / 4) - h - (c % 4)) % 7;
-                let mesP = Math.floor((h + l - 7 * Math.floor((a + 11 * h + 22 * l) / 451) + 114) / 31);
-                let diaP = ((h + l - 7 * Math.floor((a + 11 * h + 22 * l) / 451) + 114) % 31) + 1;
-                let pascoa = new Date(ano, mesP - 1, diaP);
-                let sextaSanta = new Date(pascoa); sextaSanta.setDate(pascoa.getDate() - 2);
-                let carnaval = new Date(pascoa); carnaval.setDate(pascoa.getDate() - 47);
-                let corpus = new Date(pascoa); corpus.setDate(pascoa.getDate() + 60);
-                const format = (dt) => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
-                feriados.push({ data: format(sextaSanta), nome: 'Sexta-feira Santa' }, { data: format(carnaval), nome: 'Carnaval' }, { data: format(corpus), nome: 'Corpus Christi' });
-            }
-            return feriados;
-        }
+                    <!-- Initial Granular Checkboxes for New Member -->
+                    <div id="dirNewUserPermsBox" class="pt-2 border-t border-slate-200/80 dark:border-slate-700/70 flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex flex-wrap items-center gap-3 text-xs">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Permissões iniciais:</span>
+                            <label class="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                                <input type="checkbox" id="dirPermCreate" checked class="rounded text-indigo-600 w-3.5 h-3.5">
+                                <span>Criar Tarefas</span>
+                            </label>
+                            <label class="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                                <input type="checkbox" id="dirPermEdit" checked class="rounded text-indigo-600 w-3.5 h-3.5">
+                                <span>Editar Conteúdo</span>
+                            </label>
+                            <label class="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                                <input type="checkbox" id="dirPermStatus" checked class="rounded text-indigo-600 w-3.5 h-3.5">
+                                <span>Mudar Status / Checklist</span>
+                            </label>
+                            <label class="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                                <input type="checkbox" id="dirPermDelete" checked class="rounded text-indigo-600 w-3.5 h-3.5">
+                                <span>Excluir Tarefas</span>
+                            </label>
+                            <label class="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                                <input type="checkbox" id="dirPermBackup" checked class="rounded text-indigo-600 w-3.5 h-3.5">
+                                <span>Exportar/Importar JSON</span>
+                            </label>
+                        </div>
 
-        function verificarFeriado(dataString) {
-            let nac = feriadosNacionais.find(f => f.data === dataString);
-            if (nac) return nac.nome;
-            if (listaFeriados.includes(dataString)) return 'Pausa Customizada';
-            return null;
-        }
+                        <button type="submit" id="dirCreateBtn" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-plus"></i> Salvar Cadastro
+                        </button>
+                    </div>
+                </form>
 
-        function inicializarApp() {
-            feriadosNacionais = gerarFeriadosNacionais();
-            
-            // OUVINTE EM TEMPO REAL DO FIREBASE
-            refProjeto.on('value', (snapshot) => {
-                const data = snapshot.val();
-                if (data) {
-                    if (data.dadosProjeto) processarJSONLido(JSON.parse(data.dadosProjeto));
-                    else dadosProjeto = [];
-                    if (data.listaFeriados) listaFeriados = JSON.parse(data.listaFeriados);
-                    else listaFeriados = [];
-                } else {
-                    dadosProjeto = [];
-                    listaFeriados = [];
-                }
-                
-                document.getElementById('statusSincronizacao').className = "w-full bg-green-900 text-green-200 text-center py-2 rounded mb-2 text-sm font-bold shadow-inner";
-                document.getElementById('statusSincronizacao').innerText = "☁️ Sincronizado com a Nuvem";
-                
-                renderizarFeriadosUI();
-                recalcularCascata(); 
-                desenharGrafico();
-            }, (errorObject) => {
-                document.getElementById('statusSincronizacao').className = "w-full bg-red-900 text-red-200 text-center py-2 rounded mb-2 text-sm font-bold shadow-inner";
-                document.getElementById('statusSincronizacao').innerText = "⚠️ Erro de Conexão";
-                console.error("Falha na leitura Firebase: " + errorObject.name);
-            });
+                <!-- Active User's Own Permissions Summary Banner -->
+                <div id="myActivePermsBanner" class="p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <!-- Populated via JS -->
+                </div>
 
-            document.addEventListener('click', function(e) {
-                const menu = document.getElementById('menuFlutuante');
-                if (!menu.classList.contains('hidden') && !e.target.closest('path') && !e.target.closest('rect')) {
-                    menu.classList.add('hidden');
-                }
-            });
-            setInterval(desenharMarcadoresTempo, 60000);
-            alternarModoTermino(); 
-        }
+                <!-- Registered Users List & Granular Permission Matrix -->
+                <div class="space-y-2.5">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-sliders text-indigo-500"></i> Matriz de Permissões por Membro (<span id="dirUsersCount">0</span>)
+                            </h4>
+                            <p class="text-[11px] text-slate-400">Clique nos interruptores de cada membro para ativar ou bloquear permissões instantaneamente na nuvem.</p>
+                        </div>
+                        <button type="button" onclick="refreshUserDirectoryList()" class="text-xs text-indigo-500 hover:underline font-medium flex items-center gap-1">
+                            <i class="fa-solid fa-rotate text-[10px]"></i> Atualizar Lista
+                        </button>
+                    </div>
 
-        function mudarZoom() {
-            requiresScrollToToday = true;
-            desenharGrafico();
-        }
+                    <div id="dirUsersTableContainer" class="divide-y divide-slate-200 dark:divide-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-900/40">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
 
-        function adicionarFeriado() {
-            const dateInput = document.getElementById('inputFeriado').value;
-            if(!dateInput) return;
-            if (feriadosNacionais.some(f => f.data === dateInput)) { alert("Esta data já é um Feriado Nacional Automático!"); return; }
-            if(!listaFeriados.includes(dateInput)) {
-                listaFeriados.push(dateInput);
-                listaFeriados.sort(); 
-                salvarNaNuvem();
-            }
-            document.getElementById('inputFeriado').value = '';
-        }
+                <div class="flex justify-end pt-2 border-t border-slate-200 dark:border-slate-700">
+                    <button type="button" onclick="closeUserDirectoryModal()" class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-medium">
+                        Fechar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-        function removerFeriado(dataString) {
-            listaFeriados = listaFeriados.filter(f => f !== dataString);
-            salvarNaNuvem();
-        }
+    <!-- Confirm Clear All Modal -->
+    <div id="confirmClearModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-darkCard w-full max-w-md rounded-2xl border border-slate-200 dark:border-darkBorder shadow-2xl p-6 space-y-4">
+            <div class="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center text-xl mx-auto">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div class="text-center">
+                <h3 class="text-base font-bold text-slate-800 dark:text-slate-100">Limpar todas as tarefas da sala?</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Esta ação apagará todas as tarefas atuais desta sala para todos os usuários conectados.
+                </p>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button type="button" onclick="closeClearConfirmModal()" class="flex-1 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                    Cancelar
+                </button>
+                <button type="button" onclick="confirmClearAllTasks()" class="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold transition">
+                    Sim, Limpar Tudo
+                </button>
+            </div>
+        </div>
+    </div>
 
-        function renderizarFeriadosUI() {
-            const containerCustom = document.getElementById('listaFeriadosUI');
-            containerCustom.innerHTML = '';
-            listaFeriados.forEach(f => {
-                const badge = document.createElement('div');
-                badge.className = 'flex items-center bg-gray-700 text-gray-200 text-xs px-2 py-1 rounded border border-gray-600';
-                badge.innerHTML = `<span>${f.split('-').reverse().join('/')}</span><button type="button" onclick="removerFeriado('${f}')" class="ml-2 text-red-400 hover:text-red-300 font-bold">&times;</button>`;
-                containerCustom.appendChild(badge);
-            });
-            const container60 = document.getElementById('listaFeriados60Dias');
-            const hoje = new Date();
-            hoje.setHours(0,0,0,0);
-            const daqui60 = new Date(hoje);
-            daqui60.setDate(daqui60.getDate() + 60);
-            let todos = [...feriadosNacionais];
-            listaFeriados.forEach(f => { if(!todos.some(x => x.data === f)) todos.push({ data: f, nome: 'Pausa Customizada' }); });
-            todos.sort((a,b) => new Date(a.data) - new Date(b.data));
-            let html60 = '', cont = 0;
-            todos.forEach(f => {
-                const dataObj = new Date(f.data + 'T00:00:00'); 
-                if (dataObj >= hoje && dataObj <= daqui60) {
-                    const dia = String(dataObj.getDate()).padStart(2,'0'), mes = String(dataObj.getMonth()+1).padStart(2,'0');
-                    html60 += `<div class="flex justify-between py-1.5 border-b border-gray-700 last:border-0"><span class="text-indigo-400 font-bold w-12">${dia}/${mes}</span><span class="text-gray-300 flex-1 truncate ml-2" title="${f.nome}">${f.nome}</span></div>`;
-                    cont++;
-                }
-            });
-            if(cont === 0) html60 = '<div class="text-gray-500 text-center py-2">Nenhum feriado nos próximos 60 dias.</div>';
-            container60.innerHTML = html60;
-        }
+    <!-- Modal de Confirmação ao Importar Backup JSON (Apenas Acrescentar) -->
+    <div id="jsonImportChoiceModal" class="fixed inset-0 z-50 hidden bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-darkCard w-full max-w-md rounded-2xl border border-slate-200 dark:border-darkBorder shadow-2xl p-6 space-y-4">
+            <div class="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center text-xl mx-auto">
+                <i class="fa-solid fa-file-import"></i>
+            </div>
+            <div class="text-center space-y-1.5">
+                <h3 class="text-base font-bold text-slate-800 dark:text-slate-100">Importar Backup JSON</h3>
+                <p id="jsonImportSummaryText" class="text-xs text-slate-500 dark:text-slate-400">
+                    Foram encontradas tarefas no arquivo selecionado. Confirme abaixo para acrescentá-las às tarefas existentes:
+                </p>
+            </div>
+            <div class="space-y-2.5 pt-2">
+                <button type="button" onclick="executePendingJsonImport('append')" class="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-layer-group"></i>
+                    <span>Acrescentar às Tarefas Existentes</span>
+                </button>
+                <button type="button" onclick="closeJsonImportChoiceModal()" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                    Cancelar Importação
+                </button>
+            </div>
+        </div>
+    </div>
 
-        function calcularDataFim(inicio, duracaoValor, duracaoUnidade, trabSab, trabDom, trabFer) {
-            let horas = duracaoUnidade === 'dias' ? (duracaoValor * 8) : duracaoValor;
-            let minutosRestantes = Math.round(horas * 60);
-            let atual = new Date(inicio.getTime());
-            if (minutosRestantes <= 0) return atual;
-            const inicioManha = 8 * 60, fimManha = 12 * 60, inicioTarde = 13 * 60, fimTarde = 17 * 60;    
-            while (minutosRestantes > 0) {
-                let diaSemana = atual.getDay();
-                let isFimSemana = (diaSemana === 0 && !trabDom) || (diaSemana === 6 && !trabSab);
-                const a = atual.getFullYear(), m = String(atual.getMonth()+1).padStart(2,'0'), d = String(atual.getDate()).padStart(2,'0');
-                let isFeriado = verificarFeriado(`${a}-${m}-${d}`) !== null;
-                if (isFimSemana || (isFeriado && !trabFer)) { atual.setDate(atual.getDate() + 1); atual.setHours(8, 0, 0, 0); continue; }
-                let horaMinutos = atual.getHours() * 60 + atual.getMinutes();
-                if (horaMinutos < inicioManha) { atual.setHours(8, 0, 0, 0); continue; } 
-                else if (horaMinutos >= fimManha && horaMinutos < inicioTarde) { atual.setHours(13, 0, 0, 0); continue; } 
-                else if (horaMinutos >= fimTarde) { atual.setDate(atual.getDate() + 1); atual.setHours(8, 0, 0, 0); continue; }
-                let minutosAtePausa = 0;
-                if (horaMinutos < fimManha) minutosAtePausa = fimManha - horaMinutos;
-                else if (horaMinutos < fimTarde) minutosAtePausa = fimTarde - horaMinutos;
-                let tempoGasto = Math.min(minutosRestantes, minutosAtePausa);
-                atual.setMinutes(atual.getMinutes() + tempoGasto);
-                minutosRestantes -= tempoGasto;
-            }
-            return atual;
-        }
+    <!-- Modal de Confirmação por Senha para Exclusão de Tarefa ou Sala -->
+    <div id="deletePasswordModal" class="fixed inset-0 z-50 hidden bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-darkCard w-full max-w-md rounded-2xl border border-slate-200 dark:border-darkBorder shadow-2xl overflow-hidden animate-fadeIn">
+            <div class="px-6 py-4 bg-rose-500/10 border-b border-rose-500/20 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center shadow-sm">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <div>
+                        <h3 id="deletePasswordModalTitle" class="text-base font-bold text-rose-600 dark:text-rose-400">Confirmar Exclusão com Senha</h3>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Segurança contra exclusões acidentais</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeDeletePasswordModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
 
-        function recalcularCascata() {
-            let houveMudanca = true, iteracoes = 0;
-            const maxIteracoes = dadosProjeto.length + 1; 
-            while (houveMudanca && iteracoes < maxIteracoes) {
-                houveMudanca = false; iteracoes++;
-                for (let t of dadosProjeto) {
-                    if (t.dependencia) {
-                        const pai = dadosProjeto.find(p => p.id === t.dependencia);
-                        if (pai && pai.fim) {
-                            if (t.inicio.getTime() !== pai.fim.getTime()) {
-                                if (t.tipoTermino === 'data' && t.fim) t.fim = new Date(pai.fim.getTime() + (t.fim.getTime() - t.inicio.getTime()));
-                                t.inicio = new Date(pai.fim.getTime());
-                                houveMudanca = true; 
-                            }
-                        }
-                    }
-                    if(!t.dependencia && t.tipoTermino === 'duracao') {
-                        const inicioOriginal = t.inicio.getTime();
-                        let inicioTemporario = calcularDataFim(new Date(t.inicio), 0, 'horas', t.trabalhaSabado, t.trabalhaDomingo, t.trabalhaFeriado);
-                        if(inicioOriginal !== inicioTemporario.getTime()) { t.inicio = inicioTemporario; houveMudanca = true; }
-                    }
-                    if (t.tipoTermino === 'duracao') {
-                        const novoFim = calcularDataFim(t.inicio, t.duracaoValor, t.duracaoUnidade, t.trabalhaSabado, t.trabalhaDomingo, t.trabalhaFeriado);
-                        if (!t.fim || t.fim.getTime() !== novoFim.getTime()) { t.fim = novoFim; houveMudanca = true; }
-                    }
-                }
-            }
-        }
+            <form onsubmit="handleConfirmDeleteWithPassword(event)" class="p-6 space-y-4">
+                <p id="deletePasswordModalDesc" class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                    Para confirmar esta exclusão permanente, digite a sua senha pessoal (ou a senha de um Administrador):
+                </p>
 
-        function desenharMarcadoresTempo() {
-            const grafico = document.getElementById('grafico_div');
-            ['containerFundo', 'containerFrente'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
-            if (dadosProjeto.length === 0) return;
-            let minDate = new Date(8640000000000000), maxDate = new Date(-8640000000000000);
-            dadosProjeto.forEach(t => {
-                if (t.inicio < minDate) minDate = new Date(t.inicio);
-                if (t.fim && t.fim > maxDate) maxDate = new Date(t.fim);
-            });
-            const svg = grafico.querySelector('svg');
-            if (!svg) return;
-            svg.style.position = 'relative';
-            svg.style.zIndex = '10';
-            svg.style.marginTop = '25px'; 
+                <div id="deletePasswordErrorAlert" class="hidden p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-semibold"></div>
 
-            const svgRect = svg.getBoundingClientRect();
-            let minRelPixel = Infinity, maxRelPixel = -Infinity;
-            const elementos = svg.querySelectorAll('rect, path');
-            elementos.forEach(el => {
-                const rect = el.getBoundingClientRect();
-                if (rect.height >= 8 && rect.height <= 50 && rect.width > 2) {
-                    if (rect.width > svgRect.width * 0.95) return;
-                    const fill = (el.getAttribute('fill') || '').toLowerCase(), stroke = (el.getAttribute('stroke') || '').toLowerCase();
-                    const coresIgnoradas = ['none', '#ffffff', '#f5f5f5', '#e6e6e6', '#f9f9f9', '#ebebeb', '#e8e8e8', '#000000'];
-                    if (coresIgnoradas.includes(fill)) return; 
-                    if (stroke && stroke !== 'none' && stroke !== fill) return; 
-                    const relLeft = rect.left - svgRect.left, relRight = rect.right - svgRect.left;
-                    if (relLeft < minRelPixel) minRelPixel = relLeft;
-                    if (relRight > maxRelPixel) maxRelPixel = relRight;
-                }
-            });
-            if (minRelPixel === Infinity || maxRelPixel === -Infinity || maxRelPixel <= minRelPixel) return;
+                <div>
+                    <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                        <i class="fa-solid fa-key text-rose-500 mr-1"></i> Senha de Autorização *
+                    </label>
+                    <div class="relative">
+                        <input type="password" id="deletePasswordConfirmInput" required placeholder="Digite sua senha para confirmar..." class="w-full pl-3.5 pr-9 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-rose-500 text-sm">
+                        <button type="button" onclick="togglePasswordVisibility('deletePasswordConfirmInput', 'deletePasswordConfirmEye')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                            <i id="deletePasswordConfirmEye" class="fa-regular fa-eye text-xs"></i>
+                        </button>
+                    </div>
+                </div>
 
-            let larguraColunaFixa = Infinity;
-            svg.querySelectorAll('path').forEach(p => {
-                const rect = p.getBoundingClientRect();
-                if (rect.height > 30 && rect.width < 5) { 
-                    const relX = rect.left - svgRect.left;
-                    if (relX > 50 && relX < larguraColunaFixa) larguraColunaFixa = relX;
-                }
-            });
-            if (larguraColunaFixa === Infinity || larguraColunaFixa > svgRect.width / 2) larguraColunaFixa = minRelPixel - 10; 
-            const limiteGraficoX = larguraColunaFixa; 
+                <div class="flex items-center gap-2.5 pt-2">
+                    <button type="button" onclick="closeDeletePasswordModal()" class="flex-1 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                        Cancelar
+                    </button>
+                    <button type="submit" id="deletePasswordConfirmBtn" class="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md shadow-rose-600/20 transition flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-trash-can"></i> Confirmar Exclusão
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-            svg.querySelectorAll('rect').forEach(r => {
-                const rectBox = r.getBoundingClientRect();
-                if (rectBox.left - svgRect.left > limiteGraficoX - 10 && (rectBox.top - svgRect.top < 45 || rectBox.top - svgRect.top > svgRect.height - 45) && ['#ffffff', '#f5f5f5', '#e6e6e6', '#f9f9f9', '#ebebeb', '#e8e8e8'].includes((r.getAttribute('fill') || '').toLowerCase())) r.setAttribute('fill-opacity', '0');
-            });
-            svg.querySelectorAll('text').forEach(t => {
-                const rectBox = t.getBoundingClientRect();
-                if (rectBox.left - svgRect.left > limiteGraficoX - 10 && (rectBox.top - svgRect.top < 45 || rectBox.top - svgRect.top > svgRect.height - 45)) { t.setAttribute('fill-opacity', '0'); t.textContent = ''; }
-            });
+    <!-- Modal de Importação de Pedido de Engenharia (.XLS / .XLSX): 1 Pedido = 1 Tarefa | Cada Item = 1 Subtarefa (Layout Ultra Compacto) -->
+    <div id="excelImportModal" class="fixed inset-0 z-50 hidden bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
+        <div class="bg-white dark:bg-darkCard w-full max-w-5xl max-h-[94vh] rounded-2xl border border-slate-200 dark:border-darkBorder shadow-2xl overflow-hidden flex flex-col">
+            <!-- Cabeçalho Fixo Compacto -->
+            <div class="px-4 py-2.5 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-darkBorder flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-sm text-xs">
+                        <i class="fa-solid fa-file-excel"></i>
+                    </div>
+                    <div class="flex flex-wrap items-baseline gap-2">
+                        <h3 class="text-sm font-bold">Importar Pedido (.XLS / .XLSX)</h3>
+                        <span class="text-[11px] text-slate-400 hidden sm:inline">• 1 Pedido = 1 Tarefa | Cada Item = 1 Subtarefa</span>
+                    </div>
+                </div>
+                <button type="button" onclick="closeExcelImportModal()" class="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-700/50 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
 
-            const msPorPixel = (maxDate.getTime() - minDate.getTime()) / (maxRelPixel - minRelPixel);
-            const pxPorDia = 86400000 / msPorPixel;
+            <!-- Corpo Rolável com Aproveitamento Máximo de Espaço -->
+            <div class="p-3.5 sm:p-4 space-y-2.5 overflow-y-auto flex-1 min-h-0 flex flex-col">
+                <!-- Dropzone de Upload Compacto em Linha Única -->
+                <div class="shrink-0">
+                    <label id="excelUploadDropzoneLabel" class="w-full border-2 border-dashed border-emerald-500/40 hover:border-emerald-500 rounded-xl px-4 py-2.5 cursor-pointer bg-emerald-500/5 hover:bg-emerald-500/10 transition flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <i class="fa-solid fa-file-arrow-up text-lg text-emerald-500 shrink-0"></i>
+                            <div class="text-left min-w-0">
+                                <span id="excelUploadMainText" class="text-xs font-bold text-slate-700 dark:text-slate-200 block truncate">Clique para selecionar ou arraste o arquivo (.xlsx / .xls)</span>
+                                <span class="text-[10px] text-slate-400 block truncate">Lê o cabeçalho como Tarefa e os itens (Id, Qtd, Unid, Cod. Ter., Descrição) como Subtarefas</span>
+                            </div>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-lg bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[11px] font-bold shrink-0">
+                            <i class="fa-solid fa-folder-open mr-1"></i>Selecionar Planilha
+                        </span>
+                        <input type="file" id="excelFileInput" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleExcelFileSelect(event)">
+                    </label>
+                </div>
 
-            const containerFundo = document.createElement('div'); containerFundo.id = 'containerFundo'; containerFundo.className = 'absolute inset-0 z-0 overflow-hidden pointer-events-none'; grafico.appendChild(containerFundo);
-            const containerFrente = document.createElement('div'); containerFrente.id = 'containerFrente'; containerFrente.className = 'absolute inset-0 z-20 overflow-hidden pointer-events-none'; grafico.appendChild(containerFrente);
+                <!-- Dados da Tarefa (Pedido) Compactos em Duas Linhas -->
+                <div id="excelTaskConfigSection" class="hidden space-y-2 p-3 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 shrink-0">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-clipboard-list"></i> Dados da Tarefa (Pedido Principal)
+                        </span>
+                        <label class="flex items-center gap-1.5 text-[11px] font-semibold cursor-pointer select-none text-slate-600 dark:text-slate-300">
+                            <input type="checkbox" id="importSkipZeroQty" checked onchange="renderExcelPreviewTable()" class="rounded text-indigo-600 w-3.5 h-3.5">
+                            <span>Ignorar itens com Qtd = 0</span>
+                        </label>
+                    </div>
 
-            let dataCursor = new Date(minDate); dataCursor.setHours(0,0,0,0); dataCursor.setDate(dataCursor.getDate() - 10);
-            let dataFimLoop = new Date(maxDate); dataFimLoop.setHours(0,0,0,0); dataFimLoop.setDate(dataFimLoop.getDate() + 20);
-            const nomesDias = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+                    <!-- Linha Única Combinada: Título + Descrição + Prioridade + Prazo + Responsável -->
+                    <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
+                        <div class="sm:col-span-4">
+                            <label class="block text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-0.5">Título da Tarefa (Pedido) *</label>
+                            <input type="text" id="importOrderTitleInput" autocomplete="off" class="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-bold focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div class="sm:col-span-3">
+                            <label class="block text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-0.5">Descrição / Observações</label>
+                            <input type="text" id="importOrderDescInput" autocomplete="off" placeholder="Opcional..." class="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div class="sm:col-span-1">
+                            <label class="block text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-0.5">Prior.</label>
+                            <select id="importDefaultPriority" class="w-full px-1.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-semibold focus:outline-none focus:border-indigo-500">
+                                <option value="urgente">🔥 Urg</option>
+                                <option value="alta" selected>⚡ Alta</option>
+                                <option value="media">📌 Méd</option>
+                                <option value="baixa">🌱 Baixa</option>
+                            </select>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-0.5">Prazo Entrega</label>
+                            <input type="date" id="importDefaultDueDate" class="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-semibold focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <div class="flex items-center justify-between mb-0.5">
+                                <label class="block text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">Responsável(is)</label>
+                                <button type="button" onclick="openMultiMemberPickerModal({ mode: 'excel_default_author', selectId: 'importDefaultAuthor', title: 'Responsáveis pelo Pedido' })" class="text-[10px] font-extrabold text-indigo-600 dark:text-indigo-400 hover:underline" title="Atribuir mais de um membro ao pedido">
+                                    + Membros
+                                </button>
+                            </div>
+                            <select id="importDefaultAuthor" onchange="handleImportDefaultAuthorChange(this.value)" class="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-semibold cursor-pointer focus:outline-none focus:border-indigo-500">
+                                <option value="">👤 Sem resp.</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
 
-            while (dataCursor <= dataFimLoop) {
-                const a = dataCursor.getFullYear(), m = String(dataCursor.getMonth()+1).padStart(2,'0'), d = String(dataCursor.getDate()).padStart(2,'0');
-                const nomeFeriado = verificarFeriado(`${a}-${m}-${d}`);
-                const leftPos = minRelPixel + ((dataCursor.getTime() - minDate.getTime()) / msPorPixel);
+                <!-- Tabela de Pré-Visualização dos Itens (Subtarefas) com Altura Ampliada -->
+                <div id="excelPreviewContainer" class="hidden flex-1 min-h-0 flex flex-col space-y-1.5">
+                    <div class="flex flex-wrap items-center justify-between gap-2 shrink-0">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500" id="excelPreviewCountLabel">0 subtarefas selecionadas</span>
+                        <div class="flex flex-wrap items-center gap-2 text-xs">
+                            <input type="hidden" id="excelMacroTotalHoursInput">
+                            <input type="hidden" id="excelBatchSubtaskHoursInput">
+                            <button type="button" onclick="groupSelectedExcelItems()" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold shadow-sm transition flex items-center gap-1.5" title="Agrupar todos os itens marcados em uma única subtarefa">
+                                <i class="fa-solid fa-object-group text-[10px]"></i>
+                                <span>Agrupar Itens Marcados</span>
+                            </button>
+                            <button type="button" onclick="distributeExcelPreviewHours(false)" class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold shadow-sm transition flex items-center gap-1.5" title="Abrir janela para distribuir Tempo da Tarefa Macro ou Horas por Subtarefa">
+                                <i class="fa-solid fa-stopwatch text-[10px]"></i>
+                                <span>Distribuir Tempo (Macro / Subtarefa)</span>
+                            </button>
+                            <span>•</span>
+                            <button type="button" onclick="toggleAllPreviewItems(true)" class="text-indigo-500 hover:underline font-semibold">Marcar todos</button>
+                            <span>•</span>
+                            <button type="button" onclick="toggleAllPreviewItems(false)" class="text-slate-400 hover:underline">Desmarcar todos</button>
+                        </div>
+                    </div>
+                    <div data-scroll-id="excel_preview_scroll" onscroll="recordContainerScroll(this)" class="overflow-x-auto overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-700 flex-1 min-h-[220px] max-h-[48vh]">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 sticky top-0">
+                                <tr>
+                                    <th class="p-2.5 w-8 text-center">✓</th>
+                                    <th class="p-2.5 w-12">ID</th>
+                                    <th class="p-2.5 w-20">Qtd / Un</th>
+                                    <th class="p-2.5 w-24">Cod. Ter.</th>
+                                    <th class="p-2.5">Subtarefa (Item do Pedido)</th>
+                                    <th class="p-2.5 w-28 text-center">Tempo (Horas)</th>
+                                    <th class="p-2.5 w-44">Atribuir Membro (Subtarefa)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="excelPreviewTableBody" class="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900/50"></tbody>
+                        </table>
+                    </div>
+                </div>
 
-                if (leftPos + pxPorDia > limiteGraficoX) {
-                    if (nomeFeriado !== null || dataCursor.getDay() === 6 || dataCursor.getDay() === 0) {
-                        const fundo = document.createElement('div'); fundo.className = 'absolute top-[30px] bottom-0'; 
-                        if (nomeFeriado !== null) fundo.classList.add('bg-red-50'); else fundo.classList.add('bg-slate-100'); 
-                        fundo.style.left = leftPos + 'px'; fundo.style.width = pxPorDia + 'px'; containerFundo.appendChild(fundo);
-                    }
-                    const linhaVertical = document.createElement('div'); linhaVertical.className = 'absolute top-[30px] bottom-0 border-l border-gray-200'; linhaVertical.style.left = leftPos + 'px'; containerFundo.appendChild(linhaVertical);
-                    const cabecalho = document.createElement('div'); cabecalho.className = 'absolute top-0 h-[30px] border-b border-l border-gray-300 flex items-center justify-center flex-col shadow-sm';
-                    if (nomeFeriado !== null) { cabecalho.classList.add('bg-red-100', 'text-red-700'); cabecalho.title = nomeFeriado; }
-                    else if (dataCursor.getDay() === 6 || dataCursor.getDay() === 0) cabecalho.classList.add('bg-slate-200', 'text-slate-600');
-                    else cabecalho.classList.add('bg-gray-50', 'text-gray-600');
-                    cabecalho.style.left = leftPos + 'px'; cabecalho.style.width = pxPorDia + 'px';
-                    cabecalho.innerHTML = `<span class="text-[9px] font-bold uppercase leading-tight ${nomeFeriado !== null ? 'pointer-events-auto cursor-help' : ''}">${nomesDias[dataCursor.getDay()]}</span><span class="text-[9px] leading-tight">${d}/${m}</span>`;
-                    containerFrente.appendChild(cabecalho);
-                }
-                dataCursor.setDate(dataCursor.getDate() + 1);
-            }
+            </div>
 
-            const posicaoHojeLeft = minRelPixel + ((new Date().getTime() - minDate.getTime()) / msPorPixel);
-            if (posicaoHojeLeft > limiteGraficoX) {
-                const linhaHoje = document.createElement('div'); linhaHoje.className = 'absolute top-[30px] bottom-0 w-[2px] bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.8)] z-50'; linhaHoje.style.left = posicaoHojeLeft + 'px';
-                const rotuloHoje = document.createElement('div'); rotuloHoje.innerText = 'Hoje'; rotuloHoje.className = 'absolute top-2 left-1 bg-red-500 text-white px-2 py-0.5 rounded text-[10px] font-bold shadow';
-                linhaHoje.appendChild(rotuloHoje); containerFrente.appendChild(linhaHoje);
-            }
+            <!-- Rodapé Fixo (Sempre Visível!) -->
+            <div class="px-5 py-3.5 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700 flex items-center justify-end gap-2.5 shrink-0">
+                <button type="button" onclick="closeExcelImportModal()" class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-semibold transition">
+                    Cancelar
+                </button>
+                <button type="button" id="confirmExcelImportBtn" onclick="confirmExcelImportTasks()" disabled class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-semibold shadow-md shadow-emerald-600/20 transition flex items-center gap-2">
+                    <i class="fa-solid fa-check-double"></i> Criar Tarefa do Pedido com Subtarefas
+                </button>
+            </div>
+        </div>
+    </div>
 
-            let colunaFixa = document.getElementById('coluna_fixa');
-            colunaFixa.style.width = limiteGraficoX + 'px';
-            colunaFixa.innerHTML = ''; 
-            const cloneDiv = grafico.cloneNode(true);
-            cloneDiv.querySelectorAll('*').forEach(el => el.removeAttribute('id')); cloneDiv.removeAttribute('id');
-            colunaFixa.appendChild(cloneDiv);
-            colunaFixa.classList.remove('hidden');
 
-            const scrollW = document.getElementById('scroll_wrapper');
-            scrollW.onscroll = () => { const innerClone = colunaFixa.firstElementChild; if (innerClone) innerClone.style.transform = `translateY(-${scrollW.scrollTop}px)`; };
+    <!-- Modal para Definir Status "Aguardando" e Observação do Motivo (Tarefas e Subtarefas) -->
+    <div id="waitingReasonModal" class="fixed inset-0 z-[70] hidden bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+        <div class="bg-white dark:bg-darkCard w-full max-w-md rounded-2xl border border-slate-200 dark:border-darkBorder shadow-2xl overflow-hidden">
+            <div class="px-5 py-3.5 bg-amber-500/10 border-b border-amber-500/25 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-sm">
+                        <i class="fa-solid fa-circle-pause text-sm"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-extrabold text-amber-700 dark:text-amber-300">Opção: Aguardando & Motivo</h3>
+                        <p id="waitingModalTargetLabel" class="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[260px]">Informe a observação para o motivo</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeWaitingReasonModal()" class="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
 
-            if (requiresScrollToToday) {
-                setTimeout(() => {
-                    if (document.getElementById('zoomGrafico').value !== 'auto') {
-                        scrollW.scrollTo({ left: Math.max(0, posicaoHojeLeft - (3 * pxPorDia) - limiteGraficoX), behavior: 'smooth' });
-                    }
-                    requiresScrollToToday = false;
-                }, 150);
-            }
-        }
+            <form onsubmit="handleConfirmWaitingReason(event)" class="p-5 space-y-3.5">
+                <div>
+                    <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1">
+                        <i class="fa-solid fa-comment-dots text-amber-500 mr-1"></i> Observação para o Motivo *
+                    </label>
+                    <textarea id="waitingReasonModalInput" rows="3" required placeholder="Descreva o motivo pelo qual está aguardando (ex: Aguardando aprovação do cliente, falta de matéria-prima, revisão de medidas...)" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-amber-500 text-xs font-medium text-slate-800 dark:text-slate-100 resize-y"></textarea>
+                </div>
 
-        function processarJSONLido(jsonArr) {
-            dadosProjeto = jsonArr.map(t => ({
-                ...t, inicio: new Date(t.inicio), fim: t.fim ? new Date(t.fim) : null, trabalhaSabado: t.trabalhaSabado || false, trabalhaDomingo: t.trabalhaDomingo || false, trabalhaFeriado: t.trabalhaFeriado || false
-            }));
-        }
+                <!-- Sugestões rápidas de motivo (Tags com cores diferenciadas) -->
+                <div class="space-y-1.5">
+                    <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Tags / Sugestões Rápidas:</span>
+                    <div class="flex flex-wrap gap-1.5">
+                        <button type="button" onclick="setQuickWaitingReason('Revisar e produzir')" class="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500 text-emerald-700 dark:text-emerald-300 hover:text-white border border-emerald-500/35 text-[10px] font-bold transition flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Revisar e produzir
+                        </button>
+                        <button type="button" onclick="setQuickWaitingReason('Aprovação do cliente')" class="px-2.5 py-1 rounded-lg bg-blue-500/15 hover:bg-blue-600 text-blue-700 dark:text-blue-300 hover:text-white border border-blue-500/35 text-[10px] font-bold transition flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-blue-500"></span> Aprovação do cliente
+                        </button>
+                        <button type="button" onclick="setQuickWaitingReason('Aguardando desenho')" class="px-2.5 py-1 rounded-lg bg-fuchsia-500/15 hover:bg-fuchsia-600 text-fuchsia-700 dark:text-fuchsia-300 hover:text-white border border-fuchsia-500/35 text-[10px] font-bold transition flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-fuchsia-500"></span> Aguardando desenho
+                        </button>
+                        <button type="button" onclick="setQuickWaitingReason('Falta de matéria-prima / insumo')" class="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-600 text-amber-700 dark:text-amber-300 hover:text-white border border-amber-500/35 text-[10px] font-bold transition flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-amber-500"></span> Falta de material
+                        </button>
+                        <button type="button" onclick="setQuickWaitingReason('Aguardando definição de medidas / projeto')" class="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-600 text-amber-700 dark:text-amber-300 hover:text-white border border-amber-500/35 text-[10px] font-bold transition flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-amber-500"></span> Definição de medidas
+                        </button>
+                        <button type="button" onclick="setQuickWaitingReason('Aguardando liberação da madeira')" class="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-600 text-amber-700 dark:text-amber-300 hover:text-white border border-amber-500/35 text-[10px] font-bold transition flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-amber-500"></span> Liberação da madeira
+                        </button>
+                    </div>
+                </div>
 
-        // --- SALVAR DIRETO NO FIREBASE REALTIME DATABASE ---
-        function salvarNaNuvem() { 
-            document.getElementById('statusSincronizacao').innerText = "A guardar...";
-            refProjeto.set({
-                dadosProjeto: JSON.stringify(dadosProjeto),
-                listaFeriados: JSON.stringify(listaFeriados)
-            });
-        }
+                <!-- Aviso automático ao Responsável da Tarefa -->
+                <div id="waitingModalNotifyBanner" class="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/25 flex items-center gap-2 text-[11px] text-indigo-700 dark:text-indigo-300 font-medium">
+                    <i class="fa-solid fa-bell text-amber-500 shrink-0"></i>
+                    <span id="waitingModalNotifyText">Ao salvar, o responsável principal da tarefa será avisado automaticamente na Tela de Avisos.</span>
+                </div>
 
-        function alternarModoTermino() {
-            const tipo = document.getElementById('tipoTermino').value;
-            if (tipo === 'data') {
-                document.getElementById('divDataFim').classList.remove('hidden'); document.getElementById('divDuracao').classList.add('hidden');
-                document.getElementById('tarefaFim').required = true; document.getElementById('tarefaDuracao').required = false;
-            } else {
-                document.getElementById('divDataFim').classList.add('hidden'); document.getElementById('divDuracao').classList.remove('hidden');
-                document.getElementById('tarefaFim').required = false; document.getElementById('tarefaDuracao').required = true;
-            }
-        }
+                <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                    <button type="button" id="waitingModalRemoveBtn" onclick="removeWaitingStatusFromModal()" class="hidden px-3 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-600 text-emerald-600 dark:text-emerald-400 hover:text-white border border-emerald-500/30 text-xs font-bold transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-play text-[10px]"></i> Retomar (Sair de Aguardando)
+                    </button>
+                    <div class="flex items-center gap-2 ml-auto">
+                        <button type="button" onclick="closeWaitingReasonModal()" class="px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-extrabold shadow-md shadow-amber-500/20 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-circle-pause"></i> Salvar Aguardando
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
 
-        function isDescendente(idAlvo, idAtual) {
-            if(idAlvo === idAtual) return true;
-            let t = dadosProjeto.find(x => x.id === idAlvo);
-            if(!t || !t.dependencia) return false;
-            return isDescendente(t.dependencia, idAtual);
-        }
+    
+    <!-- TELA DE AVISOS / CENTRAL DE NOTIFICAÇÕES DE ITENS AGUARDANDO E RESPONSÁVEIS -->
+    <div id="notificationsModal" class="fixed inset-0 z-[65] hidden bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
+        <div class="bg-white dark:bg-darkCard w-full max-w-3xl max-h-[90vh] rounded-2xl border border-slate-200 dark:border-darkBorder shadow-2xl overflow-hidden flex flex-col">
+            <!-- Cabeçalho da Tela de Avisos -->
+            <div class="px-5 py-3.5 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-darkBorder flex items-center justify-between gap-3 shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-sm">
+                        <i class="fa-solid fa-bell text-base"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm sm:text-base font-extrabold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                            <span>Central de Avisos & Pendências</span>
+                            <span id="notificationsModalUnreadPill" class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-600 text-white hidden">0 novos</span>
+                        </h3>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Visibilidade restrita: Avisos de tarefas visíveis apenas p/ Responsável da Tarefa, Remetente e Admin • Mensagens Diretas apenas p/ os interessados</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeNotificationsModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
 
-        function getDescendentes(id, lista = []) {
-            const filhos = dadosProjeto.filter(t => t.dependencia === id);
-            filhos.forEach(f => { lista.push(f); getDescendentes(f.id, lista); }); return lista;
-        }
+            <!-- Barra de Filtros e Ações Rápidas da Tela de Avisos -->
+            <div class="px-5 py-2.5 bg-slate-100/80 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 shrink-0">
+                <div class="inline-flex flex-wrap items-center bg-white dark:bg-slate-900 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] font-bold">
+                    <button type="button" id="notifFilterBtn-all" onclick="setNotificationsFilter('all')" class="px-2.5 py-1 rounded-lg transition bg-indigo-600 text-white shadow-sm">
+                        Todos Visíveis
+                    </button>
+                    <button type="button" id="notifFilterBtn-direct" onclick="setNotificationsFilter('direct')" class="px-2.5 py-1 rounded-lg transition text-slate-600 dark:text-slate-300 hover:text-indigo-500" title="Exibe apenas Mensagens Diretas privadas entre você e outro membro">
+                        ✉️ Mensagens Diretas
+                    </button>
+                    <button type="button" id="notifFilterBtn-mine" onclick="setNotificationsFilter('mine')" class="px-2.5 py-1 rounded-lg transition text-slate-600 dark:text-slate-300 hover:text-indigo-500" title="Exibe avisos enviados para você e cópias dos avisos criados por você com o mesmo status">
+                        Meus & Enviados
+                    </button>
+                    <button type="button" id="notifFilterBtn-unread" onclick="setNotificationsFilter('unread')" class="px-2.5 py-1 rounded-lg transition text-slate-600 dark:text-slate-300 hover:text-indigo-500">
+                        Não Lidos
+                    </button>
+                    <button type="button" id="notifFilterBtn-waiting" onclick="setNotificationsFilter('waiting')" class="px-2.5 py-1 rounded-lg transition text-slate-600 dark:text-slate-300 hover:text-indigo-500">
+                        ⏸️ Aguardando
+                    </button>
+                </div>
 
-        function atualizarSelectDependencias() {
-            const select = document.getElementById('tarefaDependencia'), valorAtual = select.value, idAtual = document.getElementById('tarefaId').value;
-            select.innerHTML = '<option value="">Nenhuma</option>';
-            dadosProjeto.forEach(t => { if (t.id !== idAtual && !isDescendente(t.id, idAtual)) select.innerHTML += `<option value="${t.id}">${t.nome}</option>`; });
-            select.value = valorAtual;
-        }
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <div class="inline-flex items-center bg-white dark:bg-slate-900 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <button type="button" onclick="expandOrCollapseAllNotifications(true)" class="px-2 py-0.5 rounded text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1" title="Expandir todos os grupos e avisos">
+                            <i class="fa-solid fa-angles-down text-indigo-500 text-[10px]"></i> Expandir
+                        </button>
+                        <button type="button" onclick="expandOrCollapseAllNotifications(false)" class="px-2 py-0.5 rounded text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1" title="Manter todos os avisos recolhidos">
+                            <i class="fa-solid fa-angles-up text-slate-400 text-[10px]"></i> Recolher
+                        </button>
+                    </div>
+                    <button type="button" onclick="markAllNotificationsAsRead()" class="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 text-[11px] font-bold transition flex items-center gap-1">
+                        <i class="fa-solid fa-check-double text-[10px]"></i> Marcar todos lidos
+                    </button>
+                    <button type="button" onclick="clearResolvedNotifications()" class="px-2.5 py-1 rounded-lg bg-slate-200/80 dark:bg-slate-800 hover:bg-rose-500/15 text-slate-600 dark:text-slate-300 hover:text-rose-600 border border-slate-300 dark:border-slate-700 text-[11px] font-semibold transition flex items-center gap-1" title="Limpar avisos já lidos/resolvidos">
+                        <i class="fa-solid fa-broom text-[10px]"></i> Limpar Lidos
+                    </button>
+                </div>
+            </div>
 
-        function aoMudarDependencia() {
-            const depId = document.getElementById('tarefaDependencia').value, inputInicio = document.getElementById('tarefaInicio'), aviso = document.getElementById('avisoInicio');
-            if(depId) {
-                document.getElementById('divConfigDiasTrabalho').classList.add('hidden'); 
-                const pai = dadosProjeto.find(p => p.id === depId);
-                if(pai && pai.fim) {
-                    inputInicio.value = `${pai.fim.getFullYear()}-${String(pai.fim.getMonth()+1).padStart(2,'0')}-${String(pai.fim.getDate()).padStart(2,'0')}T${String(pai.fim.getHours()).padStart(2,'0')}:${String(pai.fim.getMinutes()).padStart(2,'0')}`;
-                    inputInicio.readOnly = true; inputInicio.classList.add('opacity-50', 'cursor-not-allowed', 'bg-gray-600'); aviso.classList.remove('hidden');
-                }
-            } else {
-                document.getElementById('divConfigDiasTrabalho').classList.remove('hidden'); 
-                inputInicio.readOnly = false; inputInicio.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-600'); aviso.classList.add('hidden');
-            }
-        }
+            <!-- Formulário Rápido para Enviar Aviso de Tarefa ou Mensagem Direta Privada (Apenas Interessados) -->
+            <form onsubmit="handleCreateManualNotification(event)" class="px-5 py-2.5 bg-amber-500/5 border-b border-amber-500/20 flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 shrink-0">
+                <select id="manualNotifTypeSelect" onchange="handleManualNotifTypeChange(this.value)" class="sm:w-44 px-2.5 py-1.5 rounded-lg bg-amber-500/15 dark:bg-amber-950/50 border border-amber-500/40 text-amber-800 dark:text-amber-200 text-xs font-extrabold cursor-pointer focus:outline-none focus:border-amber-500" title="Escolha entre Aviso de Tarefa (visível p/ Responsável, Remetente e Admin) ou Mensagem Direta Privada (visível APENAS para você e o destinatário)">
+                    <option value="task_alert">📋 Aviso de Tarefa</option>
+                    <option value="direct_message">🔒 Mensagem Direta (Privada)</option>
+                </select>
+                <select id="manualNotifTaskSelect" onchange="handleManualNotifTaskChange(this.value)" class="sm:w-44 px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-semibold cursor-pointer focus:outline-none focus:border-amber-500" title="Vincular a uma tarefa específica (opcional em Mensagem Direta)">
+                    <option value="">📂 Sem tarefa vinculada</option>
+                </select>
+                <select id="manualNotifTargetSelect" class="sm:w-44 px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-semibold cursor-pointer focus:outline-none focus:border-amber-500" title="Destinatário (em Mensagem Direta, fica visível exclusivamente para você e o destinatário)">
+                    <option value="">👤 Selecionar Destinatário...</option>
+                </select>
+                <input type="text" id="manualNotifMessageInput" placeholder="Digite a mensagem ou aviso..." class="flex-1 min-w-[180px] px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs focus:outline-none focus:border-amber-500">
+                <button type="submit" class="px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-sm transition shrink-0 flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-paper-plane text-[10px]"></i> Enviar
+                </button>
+            </form>
 
-        document.getElementById('formTarefa').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const id = document.getElementById('tarefaId').value || 't_' + Date.now();
-            const novaTarefa = { 
-                id, nome: document.getElementById('tarefaNome').value, fase: document.getElementById('tarefaFase').value, inicio: new Date(document.getElementById('tarefaInicio').value), 
-                percentual: parseInt(document.getElementById('tarefaPercentual').value) || 0, dependencia: document.getElementById('tarefaDependencia').value || null,
-                tipoTermino: document.getElementById('tipoTermino').value, trabalhaSabado: document.getElementById('trabalhaSabado').checked, trabalhaDomingo: document.getElementById('trabalhaDomingo').checked,
-                trabalhaFeriado: document.getElementById('trabalhaFeriado').checked, fim: null, duracaoValor: null, duracaoUnidade: 'dias'
-            };
-            if (novaTarefa.tipoTermino === 'data') novaTarefa.fim = new Date(document.getElementById('tarefaFim').value);
-            else { novaTarefa.duracaoValor = parseFloat(document.getElementById('tarefaDuracao').value); novaTarefa.duracaoUnidade = document.getElementById('tarefaUnidade').value; }
-            const index = dadosProjeto.findIndex(t => t.id === id);
-            if (index >= 0) dadosProjeto[index] = novaTarefa; else dadosProjeto.push(novaTarefa);
-            
-            recalcularCascata(); limparFormulario(); salvarNaNuvem(); requiresScrollToToday = true;
-        });
+            <!-- Lista de Avisos -->
+            <div id="notificationsListContainer" class="p-4 space-y-2.5 overflow-y-auto flex-1 min-h-[260px]">
+                <!-- Populated dynamically via JS -->
+            </div>
 
-        function limparFormulario() {
-            document.getElementById('formTarefa').reset(); document.getElementById('tarefaId').value = ''; document.getElementById('tipoTermino').value = 'duracao'; 
-            ['trabalhaSabado', 'trabalhaDomingo', 'trabalhaFeriado'].forEach(id => document.getElementById(id).checked = false);
-            alternarModoTermino(); document.getElementById('menuFlutuante').classList.add('hidden'); atualizarSelectDependencias(); aoMudarDependencia(); 
-        }
+            <!-- Rodapé da Tela de Avisos -->
+            <div class="px-5 py-3 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs shrink-0">
+                <span id="notificationsFooterSummary" class="text-[11px] text-slate-400">Sincronizado em tempo real</span>
+                <button type="button" onclick="closeNotificationsModal()" class="px-4 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
 
-        function editarTarefaMenu() {
-            const t = dadosProjeto.find(x => x.id === idTarefaSelecionadaMenu);
-            if(t) {
-                document.getElementById('tarefaId').value = t.id; document.getElementById('tarefaNome').value = t.nome; document.getElementById('tarefaFase').value = t.fase;
-                document.getElementById('tarefaInicio').value = `${t.inicio.getFullYear()}-${String(t.inicio.getMonth()+1).padStart(2,'0')}-${String(t.inicio.getDate()).padStart(2,'0')}T${String(t.inicio.getHours()).padStart(2,'0')}:${String(t.inicio.getMinutes()).padStart(2,'0')}`;
-                document.getElementById('tarefaPercentual').value = t.percentual; document.getElementById('tipoTermino').value = t.tipoTermino;
-                document.getElementById('trabalhaSabado').checked = t.trabalhaSabado; document.getElementById('trabalhaDomingo').checked = t.trabalhaDomingo; document.getElementById('trabalhaFeriado').checked = t.trabalhaFeriado;
-                alternarModoTermino();
-                if (t.tipoTermino === 'data') document.getElementById('tarefaFim').value = `${t.fim.getFullYear()}-${String(t.fim.getMonth()+1).padStart(2,'0')}-${String(t.fim.getDate()).padStart(2,'0')}T${String(t.fim.getHours()).padStart(2,'0')}:${String(t.fim.getMinutes()).padStart(2,'0')}`;
-                else { document.getElementById('tarefaDuracao').value = t.duracaoValor; document.getElementById('tarefaUnidade').value = t.duracaoUnidade; }
-                atualizarSelectDependencias(); document.getElementById('tarefaDependencia').value = t.dependencia || ""; aoMudarDependencia(); 
-            }
-            document.getElementById('menuFlutuante').classList.add('hidden');
-        }
+    <!-- TELA DE TAREFAS ARQUIVADAS -->
+    <div id="archivedTasksModal" class="fixed inset-0 z-[65] hidden bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
+        <div class="bg-white dark:bg-darkCard w-full max-w-3xl max-h-[88vh] rounded-2xl border border-slate-200 dark:border-darkBorder shadow-2xl overflow-hidden flex flex-col">
+            <div class="px-5 py-3.5 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-darkBorder flex items-center justify-between gap-3 shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+                        <i class="fa-solid fa-box-archive text-base"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm sm:text-base font-extrabold text-slate-800 dark:text-slate-100">Tarefas Arquivadas</h3>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Consulte, restaure para o quadro ativo ou exclua tarefas arquivadas</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeArchivedTasksModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
 
-        function getSufixoDiasTrabalho(t) {
-            let diasArr = [];
-            if (t.trabalhaSabado) diasArr.push('Sáb'); if (t.trabalhaDomingo) diasArr.push('Dom'); if (t.trabalhaFeriado) diasArr.push('Fer');
-            if (t.trabalhaSabado && t.trabalhaDomingo && t.trabalhaFeriado) return " 🗓️[Contínuo]";
-            else if (diasArr.length > 0) return ` 🗓️[+${diasArr.join(',')}]`;
-            return ""; 
-        }
+            <div class="px-5 py-2.5 bg-slate-100/80 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 shrink-0">
+                <div class="relative flex-1 min-w-[200px]">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" id="archivedSearchInput" oninput="renderArchivedTasksModalList()" placeholder="Buscar nas tarefas arquivadas..." class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs focus:outline-none focus:border-indigo-500">
+                </div>
+                <span id="archivedModalCountLabel" class="text-xs font-bold text-slate-500 dark:text-slate-400">0 tarefa(s) arquivada(s)</span>
+            </div>
 
-        function desenharGrafico() {
-            atualizarSelectDependencias();
-            const container = document.getElementById('grafico_div');
-            ['containerFundo', 'containerFrente'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
+            <div id="archivedTasksListContainer" class="p-4 space-y-2.5 overflow-y-auto flex-1 min-h-[240px]">
+                <!-- Populated dynamically via JS -->
+            </div>
 
-            if (dadosProjeto.length === 0) {
-                container.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400">Nenhuma tarefa criada.</div>';
-                document.getElementById('coluna_fixa').classList.add('hidden');
-                return;
-            }
+            <div class="px-5 py-3 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700 flex items-center justify-end shrink-0">
+                <button type="button" onclick="closeArchivedTasksModal()" class="px-4 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
 
-            const zoomValue = document.getElementById('zoomGrafico').value;
-            const scrollWrapper = document.getElementById('scroll_wrapper');
-            let minDateGlobal = new Date(8640000000000000), maxDateGlobal = new Date(-8640000000000000);
-            dadosProjeto.forEach(t => { if (t.inicio < minDateGlobal) minDateGlobal = new Date(t.inicio); if (t.fim && t.fim > maxDateGlobal) maxDateGlobal = new Date(t.fim); });
+    
+    <!-- MODAL COM SENHA PARA ATRIBUIR HORA EXTRA, FOLGA OU PERÍODO DE FÉRIAS POR MEMBRO OU EQUIPE -->
+    <div id="scheduleExceptionAuthModal" class="fixed inset-0 z-[75] hidden bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
+        <div class="bg-white dark:bg-darkCard w-full max-w-lg rounded-2xl border border-slate-200 dark:border-darkBorder shadow-2xl overflow-hidden">
+            <div class="px-5 py-3.5 bg-indigo-500/10 border-b border-indigo-500/20 flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+                        <i class="fa-solid fa-user-clock text-sm"></i>
+                    </div>
+                    <div>
+                        <h3 id="scheduleAuthModalTitle" class="text-sm sm:text-base font-extrabold text-slate-800 dark:text-slate-100">Atribuir Hora Extra, Folga ou Férias</h3>
+                        <p id="scheduleAuthModalSubtitle" class="text-[11px] text-slate-500 dark:text-slate-400">Defina por membro da equipe (ou geral) e confirme com sua senha</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeScheduleExceptionAuthModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
 
-            if (zoomValue === 'auto') container.style.width = '100%';
-            else {
-                const diasProjeto = (maxDateGlobal.getTime() - minDateGlobal.getTime()) > 0 ? ((maxDateGlobal.getTime() - minDateGlobal.getTime()) / 86400000) : 1;
-                const clientWidth = scrollWrapper.clientWidth || 800;
-                const gridWidth = clientWidth > 200 ? clientWidth - 200 : clientWidth; 
-                container.style.width = Math.max(clientWidth, (gridWidth / parseInt(zoomValue)) * (diasProjeto + 30) + 200) + 'px';
-            }
+            <form onsubmit="handleConfirmScheduleExceptionWithPassword(event)" class="p-5 space-y-3.5 text-xs">
+                <input type="hidden" id="scheduleAuthModeInput" value="entry">
+                <input type="hidden" id="scheduleAuthDatesCsvInput" value="">
 
-            dataTable = new google.visualization.DataTable();
-            dataTable.addColumn('string', 'Task ID'); dataTable.addColumn('string', 'Task Name'); dataTable.addColumn('string', 'Resource'); dataTable.addColumn('date', 'Start Date'); dataTable.addColumn('date', 'End Date'); dataTable.addColumn('number', 'Duration'); dataTable.addColumn('number', 'Percent Complete'); dataTable.addColumn('string', 'Dependencies');
+                <!-- Bloco de Configuração (Exibido ao lançar Folga / Hora Extra / Férias no calendário ou por membro) -->
+                <div id="scheduleAuthEntryFieldsBox" class="space-y-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                                <i class="fa-solid fa-user-tag text-indigo-500 mr-1"></i> Membro da Equipe / Escopo *
+                            </label>
+                            <select id="scheduleAuthMemberSelect" class="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500 cursor-pointer">
+                                <option value="all">👥 Toda a Equipe (Geral)</option>
+                            </select>
+                        </div>
 
-            const linhas = []; const processados = new Set();
-            dadosProjeto.filter(t => !t.dependencia || !dadosProjeto.some(p => p.id === t.dependencia)).forEach(root => {
-                const familia = [root, ...getDescendentes(root.id)];
-                if (familia.length > 1) { // Só cria o Resumo se tiver dependentes
-                    let minD = new Date(8640000000000000), maxD = new Date(-8640000000000000), somaPct = 0;
-                    familia.forEach(t => { if (t.inicio < minD) minD = new Date(t.inicio); if (t.fim && t.fim > maxD) maxD = new Date(t.fim); somaPct += t.percentual; });
-                    linhas.push(['__VIRTUAL__' + root.id, root.nome + ' (Resumo Grupo)', root.fase || 'Resumo', minD, maxD, null, Math.round(somaPct / familia.length), null]);
-                }
-                familia.forEach(t => { if(!processados.has(t.id)) { linhas.push([t.id, t.nome + getSufixoDiasTrabalho(t), t.fase, t.inicio, t.fim, null, t.percentual, t.dependencia]); processados.add(t.id); } });
-            });
-            dadosProjeto.forEach(t => { if(!processados.has(t.id)) linhas.push([t.id, t.nome + getSufixoDiasTrabalho(t), t.fase, t.inicio, t.fim, null, t.percentual, t.dependencia]); });
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                                <i class="fa-solid fa-calendar-check text-amber-500 mr-1"></i> Tipo de Lançamento *
+                            </label>
+                            <select id="scheduleAuthTypeSelect" onchange="handleScheduleAuthTypeChange(this.value)" class="w-full px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500 cursor-pointer">
+                                <option value="overtime">⚡ Hora Extra (+8h no dia)</option>
+                                <option value="off">🛋️ Folga / Ausência (0h)</option>
+                                <option value="vacation">🏖️ Período de Férias (0h)</option>
+                                <option value="work">💼 Dia Útil Normal (8h)</option>
+                                <option value="default">🔄 Restaurar Padrão da Data</option>
+                            </select>
+                        </div>
+                    </div>
 
-            dataTable.addRows(linhas);
-            chart = new google.visualization.Gantt(container);
-            google.visualization.events.addListener(chart, 'ready', desenharMarcadoresTempo);
-            google.visualization.events.addListener(chart, 'select', function() {
-                const selecao = chart.getSelection();
-                if (selecao.length > 0) {
-                    const idSelecionado = dataTable.getValue(selecao[0].row, 0);
-                    if (String(idSelecionado).startsWith('__VIRTUAL__')) { chart.setSelection([]); return; }
-                    idTarefaSelecionadaMenu = idSelecionado;
-                    const menu = document.getElementById('menuFlutuante');
-                    menu.style.left = (mouseX - scrollWrapper.getBoundingClientRect().left + scrollWrapper.scrollLeft) + 'px'; 
-                    menu.style.top = (mouseY - scrollWrapper.getBoundingClientRect().top + scrollWrapper.scrollTop + 10) + 'px';
-                    menu.classList.remove('hidden');
-                }
-            });
+                    <div id="scheduleAuthDateRangeGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                                Data Inicial *
+                            </label>
+                            <input type="date" id="scheduleAuthStartDateInput" required class="w-full px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-semibold focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                                Data Final (Mesma data ou fim das férias) *
+                            </label>
+                            <input type="date" id="scheduleAuthEndDateInput" required class="w-full px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-semibold focus:outline-none focus:border-indigo-500">
+                        </div>
+                    </div>
 
-            chart.draw(dataTable, { height: scrollWrapper.clientHeight ? scrollWrapper.clientHeight - 25 : 500, gantt: { trackHeight: 30, arrow: { width: 2, color: '#4b5563', radius: 0 } } });
-        }
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                            Observação / Motivo (Opcional)
+                        </label>
+                        <input type="text" id="scheduleAuthNoteInput" placeholder="Ex: Férias anuais, Hora extra projeto urgente, Folga compensatória..." class="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
 
-        function baixarProjeto() {
-            if (dadosProjeto.length === 0) return;
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(new Blob([JSON.stringify({ tarefas: dadosProjeto, feriados: listaFeriados }, null, 2)], { type: "application/json" }));
-            a.download = "projeto_gantt_backup.json"; document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        }
+                <!-- Descrição quando for confirmação de ação customizada (ex: salvar jornada ou remover lançamento) -->
+                <div id="scheduleAuthCustomActionDesc" class="hidden p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-800 dark:text-amber-200 font-medium leading-relaxed"></div>
 
-        function abrirModalConfirmacao(acao) {
-            acaoPendenteModal = acao; document.getElementById('menuFlutuante').classList.add('hidden');
-            document.getElementById('modalTitulo').innerText = acao === 'excluir' ? "Eliminar Tarefa" : "Limpar Projeto";
-            document.getElementById('modalConfirmacao').classList.remove('hidden');
-        }
+                <!-- Erro de Senha -->
+                <div id="scheduleAuthErrorAlert" class="hidden p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 font-bold"></div>
 
-        function fecharModal() { document.getElementById('modalConfirmacao').classList.add('hidden'); acaoPendenteModal = null; }
+                <!-- Campo Obrigatório de Senha -->
+                <div class="p-3 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 space-y-1.5">
+                    <label class="block text-[10px] font-extrabold uppercase tracking-wider text-rose-600 dark:text-rose-400">
+                        <i class="fa-solid fa-lock mr-1"></i> Senha de Autorização Obrigatória *
+                    </label>
+                    <div class="relative">
+                        <input type="password" id="scheduleAuthPasswordInput" required placeholder="Digite sua senha pessoal ou de Administrador para confirmar..." class="w-full pl-3 pr-9 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-indigo-500 text-xs font-semibold">
+                        <button type="button" onclick="togglePasswordVisibility('scheduleAuthPasswordInput', 'scheduleAuthPassEye')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                            <i id="scheduleAuthPassEye" class="fa-regular fa-eye text-xs"></i>
+                        </button>
+                    </div>
+                </div>
 
-        document.getElementById('modalBtnConfirmar').addEventListener('click', function() {
-            if (acaoPendenteModal === 'excluir' && idTarefaSelecionadaMenu) {
-                dadosProjeto = dadosProjeto.filter(t => t.id !== idTarefaSelecionadaMenu);
-                dadosProjeto.forEach(t => { if (t.dependencia === idTarefaSelecionadaMenu) t.dependencia = null; });
-                recalcularCascata();
-            } else if (acaoPendenteModal === 'limpar') {
-                dadosProjeto = []; listaFeriados = [];
-            }
-            salvarNaNuvem(); limparFormulario(); fecharModal();
-        });
+                <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                    <button type="button" onclick="closeScheduleExceptionAuthModal()" class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-md shadow-indigo-600/20 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-shield-check"></i> Confirmar com Senha
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-        window.addEventListener('resize', () => { if(dadosProjeto.length > 0) desenharGrafico(); });
-    </script>
+
+    <!-- JANELA / MODAL PARA TROCA DE SENHA DO USUÁRIO -->
+    <div id="changePasswordModal" class="fixed inset-0 z-[80] hidden bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
+        <div class="bg-white dark:bg-darkCard w-full max-w-md rounded-2xl border border-slate-200 dark:border-darkBorder shadow-2xl overflow-hidden">
+            <div class="px-5 py-3.5 bg-amber-500/10 border-b border-amber-500/20 flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-sm">
+                        <i class="fa-solid fa-key text-sm"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm sm:text-base font-extrabold text-slate-800 dark:text-slate-100">Trocar Senha de Acesso</h3>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Atualize sua senha pessoal sincronizada no Firebase</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeChangePasswordModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form onsubmit="handleConfirmChangePassword(event)" class="p-5 space-y-3.5 text-xs">
+                <div id="changePasswordAlertBox" class="hidden p-2.5 rounded-xl border font-semibold"></div>
+
+                <div>
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                        <i class="fa-solid fa-user text-indigo-500 mr-1"></i> Conta / Usuário *
+                    </label>
+                    <select id="changePassUserSelect" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500 cursor-pointer">
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                        <i class="fa-solid fa-lock text-slate-400 mr-1"></i> Senha Atual (ou Senha de Administrador) *
+                    </label>
+                    <div class="relative">
+                        <input type="password" id="changePassCurrentInput" required placeholder="Digite sua senha atual..." class="w-full pl-3 pr-9 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-amber-500 font-semibold">
+                        <button type="button" onclick="togglePasswordVisibility('changePassCurrentInput', 'changePassCurrentEye')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                            <i id="changePassCurrentEye" class="fa-regular fa-eye text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 border-t border-slate-200/80 dark:border-slate-700/80">
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1">
+                            <i class="fa-solid fa-shield-halved mr-1"></i> Nova Senha *
+                        </label>
+                        <div class="relative">
+                            <input type="password" id="changePassNewInput" required minlength="3" placeholder="Mín. 3 caracteres..." class="w-full pl-3 pr-8 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-emerald-500 font-semibold">
+                            <button type="button" onclick="togglePasswordVisibility('changePassNewInput', 'changePassNewEye')" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                                <i id="changePassNewEye" class="fa-regular fa-eye text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1">
+                            <i class="fa-solid fa-check-double mr-1"></i> Confirmar Nova Senha *
+                        </label>
+                        <div class="relative">
+                            <input type="password" id="changePassConfirmInput" required minlength="3" placeholder="Repita a nova senha..." class="w-full pl-3 pr-8 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:outline-none focus:border-emerald-500 font-semibold">
+                            <button type="button" onclick="togglePasswordVisibility('changePassConfirmInput', 'changePassConfirmEye')" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                                <i id="changePassConfirmEye" class="fa-regular fa-eye text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                    <button type="button" onclick="closeChangePasswordModal()" class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                        Cancelar
+                    </button>
+                    <button type="submit" id="changePassSubmitBtn" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold shadow-md shadow-amber-500/20 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-floppy-disk"></i> Salvar Nova Senha
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- JANELA / MODAL PARA SELECIONAR MÚLTIPLOS MEMBROS PARA TAREFA OU SUBTAREFA -->
+    <div id="multiMemberPickerModal" class="fixed inset-0 z-[85] hidden bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
+        <div class="bg-white dark:bg-darkCard w-full max-w-md rounded-2xl border border-slate-200 dark:border-darkBorder shadow-2xl overflow-hidden">
+            <div class="px-5 py-3.5 bg-indigo-500/10 border-b border-indigo-500/20 flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+                        <i class="fa-solid fa-users text-sm"></i>
+                    </div>
+                    <div>
+                        <h3 id="multiMemberPickerTitle" class="text-sm sm:text-base font-extrabold text-slate-800 dark:text-slate-100">Atribuir Membros da Equipe</h3>
+                        <p id="multiMemberPickerSubtitle" class="text-[11px] text-slate-500 dark:text-slate-400">Selecione um ou mais integrantes para compartilhar esta atribuição</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeMultiMemberPickerModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form onsubmit="handleConfirmMultiMemberPicker(event)" class="p-5 space-y-3.5 text-xs">
+                <div class="flex items-center justify-between gap-2 pb-2 border-b border-slate-200 dark:border-slate-700">
+                    <span id="multiMemberSelectedCounter" class="text-[11px] font-bold text-indigo-600 dark:text-indigo-400">0 membro(s) selecionado(s)</span>
+                    <div class="flex items-center gap-2 text-[11px]">
+                        <button type="button" onclick="toggleAllMultiMemberCheckboxes(true)" class="text-indigo-500 hover:underline font-semibold">Marcar todos</button>
+                        <span class="text-slate-300 dark:text-slate-600">•</span>
+                        <button type="button" onclick="toggleAllMultiMemberCheckboxes(false)" class="text-rose-500 hover:underline font-semibold">Limpar seleção</button>
+                    </div>
+                </div>
+
+                <div id="multiMemberCheckboxesContainer" class="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                    <!-- Populated via JS -->
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                    <button type="button" onclick="closeMultiMemberPickerModal()" class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold shadow-md shadow-indigo-600/20 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-check-double"></i> Aplicar Membros Selecionados
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+    <!-- Application JavaScript -->
+    <!-- Módulos JavaScript do Sistema (Estrutura de 8 Arquivos) -->
+    <script src="js/config-state.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/auth-users.js"></script>
+    <script src="js/excel-importer.js"></script>
+    <script src="js/tasks-ui.js"></script>
+    <script src="js/whatsapp-api.js"></script>
 </body>
 </html>
